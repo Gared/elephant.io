@@ -200,7 +200,7 @@ class SocketStream extends AbstractStream
             $headers = array_merge($headers, $this->options['headers']);
         }
         $request = array_merge([
-            sprintf('%s %s HTTP/1.1', strtoupper($method), $uri),
+            sprintf('%s %s HTTP/1.0', strtoupper($method), $uri),
         ], array_map(function($key, $value) { return "$key: $value"; }, array_keys($headers), $headers));
 
         $request = implode(static::EOL, $request) . static::EOL . static::EOL . $payload;
@@ -217,7 +217,7 @@ class SocketStream extends AbstractStream
             if (!$this->connected()) {
                 break;
             }
-            if ($content = $header ? fgets($this->handle) : fread($this->handle, (int) $len)) {
+            if ($content = ($header || $len === null) ? fgets($this->handle) : fread($this->handle, (int) $len)) {
                 $this->logger->debug(sprintf('Receive: %s', trim($content)));
                 if ($content === static::EOL && $header) {
                     if ($skip_body) {
@@ -232,7 +232,7 @@ class SocketStream extends AbstractStream
                         }
                     } else {
                         $this->result['body'] .= $content;
-                        if ($len === strlen($this->result['body'])) {
+                        if ($len === null || $len === strlen($this->result['body'])) {
                             break;
                         }
                     }
