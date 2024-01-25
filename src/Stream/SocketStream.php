@@ -79,6 +79,20 @@ class SocketStream extends AbstractStream
     }
 
     /**
+     * Copied from https://stackoverflow.com/questions/10793017/how-to-easily-decode-http-chunked-encoded-string-when-making-raw-http-request
+     */
+    protected function decodeChunked($str)
+    {
+        for ($res = ''; !empty($str); $str = trim($str)) {
+            $pos = strpos($str, "\r\n");
+            $len = hexdec(substr($str, 0, $pos));
+            $res.= substr($str, $pos + 2, $len);
+            $str = substr($str, $pos + 2 + $len);
+        }
+        return $res;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function connect()
@@ -200,7 +214,7 @@ class SocketStream extends AbstractStream
             $headers = array_merge($headers, $this->options['headers']);
         }
         $request = array_merge([
-            sprintf('%s %s HTTP/1.0', strtoupper($method), $uri),
+            sprintf('%s %s HTTP/1.1', strtoupper($method), $uri),
         ], array_map(function($key, $value) { return "$key: $value"; }, array_keys($headers), $headers));
 
         $request = implode(static::EOL, $request) . static::EOL . static::EOL . $payload;
@@ -232,7 +246,12 @@ class SocketStream extends AbstractStream
                         }
                     } else {
                         $this->result['body'] .= $content;
-                        if ($len === null || $len === strlen($this->result['body'])) {
+                        $isChunkEnd = $len === null && substr($content, -3) === '0' . static::EOL;
+                        if ($isChunkEnd) {
+                            $this->result['body'] = $this->decodeChunked($this->result['body']);
+                            break;
+                        }
+                        if ($len === strlen($this->result['body'])) {
                             break;
                         }
                     }
