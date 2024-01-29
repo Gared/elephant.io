@@ -90,15 +90,10 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function emit($event, array $args)
     {
-        $namespace = $this->namespace;
-        if (!in_array($namespace, ['', '/'])) {
-            $namespace .= ',';
-        }
-
         $attachments = [];
         $this->getAttachments($args, $attachments);
         $type = count($attachments) ? static::PACKET_BINARY_EVENT : static::PACKET_EVENT;
-        $data = $namespace . json_encode([$event, $args]);
+        $data = $this->concatNamespace($this->namespace, json_encode([$event, $args]));
         if ($type === static::PACKET_BINARY_EVENT) {
             $data = sprintf('%d-%s', count($attachments), $data);
             $this->logger->debug(sprintf('Binary event arguments %s', json_encode($args)));
@@ -175,7 +170,7 @@ class Version1X extends AbstractSocketIO
         if ($oldns != $namespace) {
             parent::of($namespace);
 
-            $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $namespace . $this->getAuthPayload($namespace));
+            $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
 
             return $this->drain();
         }
@@ -419,6 +414,39 @@ class Version1X extends AbstractSocketIO
         }
     }
 
+    /**
+     * Get authentication payload handshake.
+     *
+     * @return string
+     */
+    protected function getAuthPayload()
+    {
+        if (!isset($this->options['auth']) || !$this->options['auth'] || $this->options['version'] < 4) {
+            return '';
+        }
+        if (($authData = json_encode($this->options['auth'])) === false) {
+            throw new InvalidArgumentException(sprintf('Can\'t parse auth option JSON: %s!', json_last_error_msg()));
+        }
+
+        return $authData;
+    }
+
+    /**
+     * Concatenate namespace with data using separator.
+     *
+     * @param string $namespace
+     * @param string $data
+     * @return string
+     */
+    protected function concatNamespace($namespace, $data)
+    {
+        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
+            $namespace .= ',';
+        }
+
+        return $namespace . $data;
+    }
+
     protected function matchNamespace($namespace)
     {
         if ($namespace === $this->namespace || (substr($this->namespace, 1) === $namespace)) {
@@ -465,25 +493,6 @@ class Version1X extends AbstractSocketIO
         }
 
         $this->logger->debug('Requesting namespace completed');
-    }
-
-    protected function getAuthPayload($namespace = '/')
-    {
-        if (!isset($this->options['auth']) || !$this->options['auth'] || $this->options['version'] < 4) {
-            return '';
-        }
-
-        $encodedAuthPayload = json_encode($this->options['auth']);
-        if ($encodedAuthPayload === false) {
-            throw new InvalidArgumentException('Can\'t parse auth option to JSON: ' . json_last_error_msg());
-        }
-
-        $preString = '';
-        if ($namespace && $namespace !== '' && $namespace !== '/') {
-            $preString = ',';
-        }
-
-        return $preString . $encodedAuthPayload;
     }
 
     /**
