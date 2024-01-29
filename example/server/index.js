@@ -24,7 +24,7 @@ files.forEach(file => {
         const s = new Svr(io);
         if (s.nsp) {
             s.handle();
-            console.log('Serve %s...', s.namespace);
+            console.log('Serve %s...', s.namespace ? s.namespace : '/');
         }
     }
 });

@@ -32,9 +32,7 @@ class ExampleServer {
     constructor(io) {
         this.io = io;
         this.initialize();
-        if (this.namespace) {
-            this.nsp = io.of(this.namespace);
-        }
+        this.nsp = io.of(this.namespace ? this.namespace : '/');
     }
 
     /**
@@ -64,10 +62,11 @@ class ExampleServer {
      */
     log(...args) {
         if (args.length) {
+            const ns = this.namespace ? this.namespace : '/';
             if (typeof args[0] === 'string') {
-                args[0] = `${this.namespace}: ${args[0]}`;
+                args[0] = `${ns}: ${args[0]}`;
             } else {
-                args.unshift(`${this.namespace}: `);
+                args.unshift(`${ns}: `);
             }
         }
         console.log.apply(this, args);
