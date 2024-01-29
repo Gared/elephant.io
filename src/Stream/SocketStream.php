@@ -94,6 +94,23 @@ class SocketStream extends AbstractStream
     }
 
     /**
+     * Normalize request headers from key-value pair array.
+     *
+     * @param array $headers
+     * @return array
+     */
+    protected function normalizeHeaders($headers)
+    {
+        return array_map(
+            function($key, $value) {
+                return "$key: $value";
+            },
+            array_keys($headers),
+            $headers
+        );
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function connect()
@@ -108,15 +125,8 @@ class SocketStream extends AbstractStream
             $flags |= STREAM_CLIENT_PERSISTENT;
         }
 
-        $context = !isset($this->context['headers']) ? $this->context : array_merge(
-            $this->context,
-            ['headers' => array_map(
-                function($key, $value) { return "$key: $value"; },
-                array_keys($this->context['headers']),
-                $this->context['headers']
-            )
-            ]
-        );
+        $context = !isset($this->context['headers']) ? $this->context :
+            array_merge($this->context, ['headers' => $this->normalizeHeaders($this->context['headers'])]);
 
         $this->handle = @stream_socket_client(
             sprintf('%s/%s', $address, uniqid()),
@@ -201,22 +211,22 @@ class SocketStream extends AbstractStream
         $payload = isset($options['payload']) ? $options['payload'] : null;
 
         if ($payload) {
-            $contentType = $headers['Content-type'] ?? null;
+            $contentType = $headers['Content-Type'] ?? null;
 
             if (null === $contentType) {
                 $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
-                $headers['Content-type'] = 'text/plain;charset=UTF-8';
+                $headers['Content-Type'] = 'text/plain; charset=UTF-8';
                 $headers['Content-Length'] = strlen($payload);
             }
         }
 
         $headers['Host'] = $this->url->getHost();
-        if(isset($this->options['headers'])) {
+        if (isset($this->options['headers'])) {
             $headers = array_merge($headers, $this->options['headers']);
         }
         $request = array_merge([
             sprintf('%s %s HTTP/1.1', strtoupper($method), $uri),
-        ], array_map(function($key, $value) { return "$key: $value"; }, array_keys($headers), $headers));
+        ], $this->normalizeHeaders($headers));
 
         $request = implode(static::EOL, $request) . static::EOL . static::EOL . $payload;
 
