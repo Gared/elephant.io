@@ -85,13 +85,14 @@ class Client
     /**
      * Reads a message from the socket
      *
+     * @param float $timeout Timeout in seconds
      * @return string Message read from the socket
      */
-    public function read()
+    public function read($timeout = 0)
     {
         $this->logger->debug('Reading a new message from the socket');
 
-        return $this->engine->read();
+        return $this->engine->read($timeout);
     }
 
     /**
@@ -125,11 +126,12 @@ class Client
     /**
      * Drain socket.
      *
+     * @param float $timeout Timeout in seconds
      * @return mixed
      */
-    public function drain()
+    public function drain($timeout = 0)
     {
-        return $this->engine->drain();
+        return $this->engine->drain($timeout);
     }
 
     /**

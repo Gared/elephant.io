@@ -114,7 +114,7 @@ class Version1X extends AbstractSocketIO
         $binary = null;
         $idx = 0;
         while (true) {
-            if ($packet = $this->drain($binary ? true : false)) {
+            if ($packet = $this->drain(0, $binary ? true : false)) {
                 if ($binary) {
                     $this->replaceAttachment($binary->data, $idx++, (string) $packet);
                     $binary->binCount--;
@@ -138,9 +138,9 @@ class Version1X extends AbstractSocketIO
     }
 
     /** {@inheritDoc} */
-    public function drain($raw = false)
+    public function drain($timeout = 0, $raw = false)
     {
-        if ($data = $this->read()) {
+        if ($data = $this->read($timeout)) {
             $this->logger->debug(sprintf('Got data: %s', $this->truncate((string) $data)));
             if (!$raw) {
                 $packet = $this->decodePacket($data);

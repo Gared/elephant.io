@@ -39,9 +39,10 @@ interface EngineInterface extends LoggerAwareInterface
     /**
      * Read data from the socket
      *
+     * @param float $timeout Timeout in seconds
      * @return string Data read from the socket
      */
-    public function read();
+    public function read($timeout = 0);
 
     /**
      * Emits a message through the websocket
@@ -62,9 +63,10 @@ interface EngineInterface extends LoggerAwareInterface
     /**
      * Drain data from socket.
      *
+     * @param float $timeout Timeout in seconds
      * @return mixed
      */
-    public function drain();
+    public function drain($timeout = 0);
 
     /**
      * Keeps alive the connection

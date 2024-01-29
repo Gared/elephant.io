@@ -86,9 +86,10 @@ class SocketStream extends AbstractStream
         for ($res = ''; !empty($str); $str = trim($str)) {
             $pos = strpos($str, "\r\n");
             $len = hexdec(substr($str, 0, $pos));
-            $res.= substr($str, $pos + 2, $len);
+            $res .= substr($str, $pos + 2, $len);
             $str = substr($str, $pos + 2 + $len);
         }
+
         return $res;
     }
 

@@ -144,7 +144,7 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /** {@inheritDoc} */
-    public function drain()
+    public function drain($timeout = 0)
     {
         throw new UnsupportedActionException($this, 'drain');
     }
@@ -153,13 +153,18 @@ abstract class AbstractSocketIO implements EngineInterface
      * Network safe fread wrapper.
      *
      * @param integer $bytes
+     * @param int $timeout
      * @return bool|string
      */
-    protected function readBytes($bytes)
+    protected function readBytes($bytes, $timeout = 0)
     {
         $data = '';
         $chunk = null;
+        $start = microtime(true);
         while ($bytes > 0) {
+            if ($timeout > 0 && microtime(true) - $start >= $timeout) {
+                break;
+            }
             if (!$this->stream->connected()) {
                 throw new RuntimeException('Stream disconnected');
             }
@@ -183,7 +188,7 @@ abstract class AbstractSocketIO implements EngineInterface
      * Be careful, this method may hang your script, as we're not in a non
      * blocking mode.
      */
-    public function read()
+    public function read($timeout = 0)
     {
         if (!$this->stream || !$this->stream->connected()) {
             return;
@@ -194,7 +199,7 @@ abstract class AbstractSocketIO implements EngineInterface
          * opcode... We're not interested in them. Yet.
          * the second byte contains the mask bit and the payload's length
          */
-        $data = $this->readBytes(2);
+        $data = $this->readBytes(2, $timeout);
         $bytes = \unpack('C*', $data);
 
         if (empty($bytes[2])) {

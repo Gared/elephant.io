@@ -28,16 +28,16 @@ while (true) {
         if ($retval = $client->wait($event)) {
             echo sprintf("Got a reply for first message: %s\n", json_encode($retval->data));
         }
+        continue;
     }
     if ($now - $start >= $timeout) {
         $client->emit($event, ['message' => 'Last message']);
         if ($retval = $client->wait($event)) {
-            echo sprintf("Got a reply for last message: %s\n", json_encode($retval->data));
+            echo sprintf("\nGot a reply for last message: %s\n", json_encode($retval->data));
         }
         break;
-    } else {
-        $client->drain();
     }
-    usleep(100);
+    $client->drain(1.0);
+    echo '.';
 }
 $client->close();
