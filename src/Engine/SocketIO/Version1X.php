@@ -172,16 +172,13 @@ class Version1X extends AbstractSocketIO
             parent::of($namespace);
 
             $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
-            if (($packet = $this->drain()) && is_array($packet->data)) {
-                if (!isset($packet->data['sid'])) {
-                    if (isset($packet->data['message'])) {
-                        throw new UnsuccessfulOperationException(sprintf('Unable to set namespace: %s!', $packet->data['message']));
-                    } else {
-                        throw new UnsuccessfulOperationException('Unable to set namespace!');
-                    }
-                }
-
+            if (true === ($result = $this->getConfirmedNamespace($packet = $this->drain()))) {
                 return $packet;
+            }
+            if (is_string($result)) {
+                throw new UnsuccessfulOperationException(sprintf('Unable to set namespace: %s!', $result));
+            } else {
+                throw new UnsuccessfulOperationException('Unable to set namespace!');
             }
         }
     }
@@ -442,6 +439,25 @@ class Version1X extends AbstractSocketIO
     }
 
     /**
+     * Get confirmed namespace result. Namespace is confirmed if the returned
+     * value is true, otherwise failed. If the return value is a string, it's
+     * indicated an error message.
+     *
+     * @param \stdClass $packet
+     * @return bool|string
+     */
+    protected function getConfirmedNamespace($packet)
+    {
+        if ($packet && is_array($packet->data)) {
+            if (!isset($packet->data['sid'])) {
+                return isset($packet->data['message']) ? $packet->data['message'] : false;
+            }
+
+            return true;
+        }
+    }
+
+    /**
      * Concatenate namespace with data using separator.
      *
      * @param string $namespace
@@ -521,13 +537,13 @@ class Version1X extends AbstractSocketIO
             'sid' => $this->session->id,
         ]);
 
-        $sid = null;
         $this->stream->request($uri, ['Connection' => 'close']);
-        if (($packet = $this->decodePacket($this->stream->getBody())) && $packet->data && isset($packet->data['sid'])) {
-            $sid = $packet->data['sid'];
-        }
-        if (!$sid) {
-            throw new ServerConnectionFailureException('unable to perform namespace confirmation');
+        if (true !== ($result = $this->getConfirmedNamespace($packet = $this->decodePacket($this->stream->getBody())))) {
+            if (is_string($result)) {
+                throw new ServerConnectionFailureException(sprintf('unable to confirm namespace: %s', $result));
+            } else {
+                throw new ServerConnectionFailureException('unable to confirm namespace');
+            }
         }
 
         $this->logger->debug('Confirm namespace completed');

@@ -43,8 +43,6 @@ try {
             'password' => 'my-wrong-secret-password',
         ]
     ]);
-} catch (\ElephantIO\Exception\ServerConnectionFailureException $e) {
-    echo sprintf("Authentication is failed with invalid credentials!");
 } catch (\ElephantIO\Exception\UnsuccessfulOperationException $e) {
-    echo sprintf("Authentication is failed with invalid credentials!");
+    echo sprintf("Got expected authentication failure: %s\n", $e->getMessage());
 }
