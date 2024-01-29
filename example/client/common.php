@@ -55,3 +55,28 @@ function setup_client($namespace, $logger = null, $options = [])
 
     return $client;
 }
+
+/**
+ * Truncate a long string from array value.
+ *
+ * @param array $data
+ * @param integer $len
+ * @return void
+ */
+function truncate_data(&$data, $len = 100)
+{
+    if (is_array($data)) {
+        foreach ($data as $k => &$v) {
+            if (is_array($v)) {
+                truncate_data($v, $len);
+            } else if (is_string($v)) {
+                if (($n = strlen($v)) > $len) {
+                    $n -= $len;
+                    if ($len > 3) {
+                        $v = sprintf('%s... (%d more)', substr($v, 0, $len), $n);
+                    }
+                }
+            }
+        }
+    }
+}

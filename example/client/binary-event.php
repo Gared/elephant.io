@@ -25,6 +25,7 @@ fwrite($bindata, '1234567890');
 
 $client->emit($event, ['data1' => ['test' => $payload], 'data2' => $bindata]);
 if ($retval = $client->wait($event)) {
+    truncate_data($retval->data);
     echo sprintf("Got a reply: %s\n", json_encode($retval->data));
 }
 $client->close();
