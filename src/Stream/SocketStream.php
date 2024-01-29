@@ -203,7 +203,7 @@ class SocketStream extends AbstractStream
             $contentType = $headers['Content-type'] ?? null;
 
             if (null === $contentType) {
-                $payload = utf8_encode($payload);
+                $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
                 $headers['Content-type'] = 'text/plain;charset=UTF-8';
                 $headers['Content-Length'] = strlen($payload);
             }
