@@ -19,9 +19,10 @@ use ElephantIO\SequenceReader;
 use ElephantIO\Yeast;
 use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Engine\Session;
-use ElephantIO\Exception\SocketException;
-use ElephantIO\Exception\UnsupportedTransportException;
 use ElephantIO\Exception\ServerConnectionFailureException;
+use ElephantIO\Exception\SocketException;
+use ElephantIO\Exception\UnsuccessfulOperationException;
+use ElephantIO\Exception\UnsupportedTransportException;
 use ElephantIO\Payload\Encoder;
 use ElephantIO\Stream\AbstractStream;
 
@@ -171,8 +172,17 @@ class Version1X extends AbstractSocketIO
             parent::of($namespace);
 
             $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
+            if (($packet = $this->drain()) && is_array($packet->data)) {
+                if (!isset($packet->data['sid'])) {
+                    if (isset($packet->data['message'])) {
+                        throw new UnsuccessfulOperationException(sprintf('Unable to set namespace: %s!', $packet->data['message']));
+                    } else {
+                        throw new UnsuccessfulOperationException('Unable to set namespace!');
+                    }
+                }
 
-            return $this->drain();
+                return $packet;
+            }
         }
     }
 
