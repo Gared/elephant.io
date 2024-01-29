@@ -47,20 +47,6 @@ class Version1X extends AbstractSocketIO
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
-    /**
-     * Last socket connect time.
-     *
-     * @var float
-     */
-    protected $ctime = null;
-
-    /**
-     * Wait time before creating a new socket.
-     *
-     * @var integer
-     */
-    protected $cwait = 50;
-
     /** {@inheritDoc} */
     public function connect()
     {
@@ -235,6 +221,19 @@ class Version1X extends AbstractSocketIO
             'use_b64' => false,
             'transport' => static::TRANSPORT_POLLING,
             'max_payload' => 10e7,
+            'reuse_connection' => true,
+        ];
+    }
+
+    /**
+     * Get connection default headers.
+     *
+     * @return array
+     */
+    protected function getDefaultHeaders()
+    {
+        return [
+            'Connection' => $this->options['reuse_connection'] ? 'keep-alive' : 'close',
         ];
     }
 
@@ -245,21 +244,16 @@ class Version1X extends AbstractSocketIO
      */
     protected function createSocket()
     {
-        if ($this->stream) {
+        if ($this->stream && !$this->options['reuse_connection']) {
             $this->logger->debug('Closing socket connection');
             $this->stream->close();
             $this->stream = null;
         }
-        if (null !== $this->ctime) {
-            $delta = (microtime(true) - $this->ctime) * 1000;
-            if ($delta < $this->cwait) {
-                usleep($this->cwait);
+        if (!$this->stream) {
+            $this->stream = AbstractStream::create($this->url, $this->context, array_merge($this->options, ['logger' => $this->logger]));
+            if ($errors = $this->stream->getErrors()) {
+                throw new SocketException($errors[0], $errors[1]);
             }
-        }
-        $this->ctime = microtime(true);
-        $this->stream = AbstractStream::create($this->url, $this->context, array_merge($this->options, ['logger' => $this->logger]));
-        if ($errors = $this->stream->getErrors()) {
-            throw new SocketException($errors[0], $errors[1]);
         }
     }
 
@@ -513,7 +507,7 @@ class Version1X extends AbstractSocketIO
         ]);
         $payload = static::PROTO_MESSAGE . static::PACKET_CONNECT . $this->getAuthPayload();
 
-        $this->stream->request($uri, ['Connection' => 'close'], ['method' => 'POST', 'payload' => $payload]);
+        $this->stream->request($uri, $this->getDefaultHeaders(), ['method' => 'POST', 'payload' => $payload]);
         if ($this->stream->getStatusCode() != 200) {
             throw new ServerConnectionFailureException('unable to perform namespace request');
         }
@@ -537,7 +531,7 @@ class Version1X extends AbstractSocketIO
             'sid' => $this->session->id,
         ]);
 
-        $this->stream->request($uri, ['Connection' => 'close']);
+        $this->stream->request($uri, $this->getDefaultHeaders());
         if (true !== ($result = $this->getConfirmedNamespace($packet = $this->decodePacket($this->stream->getBody())))) {
             if (is_string($result)) {
                 throw new ServerConnectionFailureException(sprintf('unable to confirm namespace: %s', $result));
@@ -573,7 +567,7 @@ class Version1X extends AbstractSocketIO
         }
         $uri = $this->getUri($query);
 
-        $this->stream->request($uri, ['Connection' => 'close']);
+        $this->stream->request($uri, $this->getDefaultHeaders());
         if ($this->stream->getStatusCode() != 200) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
