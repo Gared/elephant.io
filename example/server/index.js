@@ -8,23 +8,26 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
+const fs = require('fs');
+const path = require('path');
 const server = require('http').createServer();
 const io = require('socket.io')(server);
 
-const port = 3000;
+const port = 14000;
+const dir = __dirname;
 
-io.of('/keep-alive')
-    .on('connection', socket => {
-        console.log('Client connected: %s', socket.id);
-        socket
-            .on('disconnect', () => {
-                console.log('Client disconnected: %s', socket.id);
-            })
-            .on('message', data => {
-                console.log('Client send message: %s', data);
-                socket.emit('message', {success: true});
-            });
-    });
+console.log('Please wait, running servers...');
+const files = fs.readdirSync(dir);
+files.forEach(file => {
+    if (file.startsWith('serve-')) {
+        const Svr = require(path.join(dir, file));
+        const s = new Svr(io);
+        if (s.nsp) {
+            s.handle();
+            console.log('Serve %s...', s.namespace);
+        }
+    }
+});
 
 server.listen(port, () => {
     console.log('Server listening at %d...', port);

@@ -10,33 +10,14 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-use ElephantIO\Client;
-use Monolog\Level;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
+require __DIR__ . '/common.php';
 
-require __DIR__ . '/../../../vendor/autoload.php';
-
-$version = Client::CLIENT_4X;
-$url = 'http://localhost:3000';
+$namespace = 'keep-alive';
 $event = 'message';
 
-$logfile = __DIR__ . '/socket.log';
-if (is_readable($logfile)) {
-    @unlink($logfile);
-}
+$client = setup_client($namespace);
 
-// create a log channel
-$logger = new Logger('client');
-$logger->pushHandler(new StreamHandler($logfile, Level::Debug));
-
-// create instance
-echo sprintf("Connecting to %s\n", $url);
-$client = new Client(Client::engine($version, $url), $logger);
-$client->initialize();
-$client->of('/keep-alive');
-
-$timeout = 60; // in seconds
+$timeout = 30; // in seconds
 $start = microtime(true);
 $sent = null;
 while (true) {

@@ -10,36 +10,22 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-use ElephantIO\Client;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
+require __DIR__ . '/common.php';
 
-require __DIR__ . '/../../../vendor/autoload.php';
-
-$version = Client::CLIENT_4X;
-$url = 'http://localhost:1337';
+$namespace = 'header-auth';
 $token = 'this_is_peter_token';
-$event = 'private_chat_message';
+$event = 'message';
 
-$logfile = __DIR__ . '/socket.log';
+$logger = setup_logger();
 
-if (is_readable($logfile)) {
-    @unlink($logfile);
-}
-// create a log channel
-$logger = new Logger('client');
-$logger->pushHandler(new StreamHandler($logfile, Logger::DEBUG));
-
-echo sprintf("Creating first socket to %s\n", $url);
 // create first instance
-$client = new Client(Client::engine($version, $url, [
+$client = setup_client($namespace, $logger, [
     'headers' => [
         'X-My-Header' => 'websocket rocks',
         'Authorization' => 'Bearer ' . $token,
         'User' => 'peter',
     ]
-]), $logger);
-$client->initialize();
+]);
 
 $data = [
     'message' => 'How are you?',
@@ -53,15 +39,13 @@ if ($retval = $client->wait($event)) {
 $client->close();
 
 // create second instance
-echo sprintf("Creating second socket to %s\n", $url);
-$client = new Client(Client::engine($version, $url, [
+$client = setup_client($namespace, $logger, [
     'headers' => [
         'X-My-Header' => 'websocket rocks',
         'Authorization' => 'Bearer ' . $token,
         'User' => 'peter',
     ]
-]), $logger);
-$client->initialize();
+]);
 
 $data = [
     'message' => 'Do you remember me?',
