@@ -22,7 +22,7 @@
 
 ## Installation
 
-We are suggesting you to use composer, with the following: `php composer.phar require elephantio/elephant.io`. For other ways, you can check the release page, or the git clone urls.
+We are suggesting you to use composer, using `composer require elephantio/elephant.io`. For other ways, you can check the release page, or the git clone urls.
 
 ## Usage
 
@@ -34,7 +34,9 @@ To use Elephant.io to communicate with socket server is described as follows.
 use ElephantIO\Client;
 
 $url = 'http://localhost:8080';
-$client = new Client(Client::engine(Client::CLIENT_4X, $url));
+$options = [];
+
+$client = new Client(Client::engine(Client::CLIENT_4X, $url, $options));
 $client->initialize();
 $client->of('/');
 
@@ -56,46 +58,80 @@ if ($packet = $client->wait('user-info')) {
 }
 ```
 
-One can pass the options to the engine such as passing headers, providing additional
-authentication token, or [stream context](https://www.php.net/manual/en/function.stream-context-create.php).
+## Options
 
-```php
-<?php
+Elephant.io accepts options to configure the internal engine such as passing headers, providing additional
+authentication token, or providing stream context.
 
-// additional headers
-$client = new Client(Client::engine(Client::CLIENT_4X, $url, [
-    'headers' => ['Authorization' => 'Bearer MYTOKEN']
-]));
+* `headers`
 
-// authentication
-$client = new Client(Client::engine(Client::CLIENT_4X, $url, [
-    'auth' => [
-        'user' => 'user@example.com',
-        'token' => 'my-secret-token',
-    ]
-]));
+  An array of key-value pair to be sent as request headers. For example, pass a bearer token to the server.
 
-// stream context
-$client = new Client(Client::engine(Client::CLIENT_4X, $url, [
-    'context' => ['http' => [], 'ssl' => []]
-]));
-```
+  ```php
+  <?php
 
-The socket connection by default will be using a persistent connection. If you prefer for some
-reasons to disable it, just pass `['persistent' => false]` options when creating the client.
+  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+      'headers' => [
+          'Authorization' => 'Bearer MYTOKEN',
+      ]
+  ]));
+  ```
 
-```php
-<?php
+* `auth`
 
-$client = new Client(Client::engine(Client::CLIENT_4X, $url, [
-    'persistent' => false
-]));
-```
+  Specify an array to be passed as handshake. The data to be passed depends on the server implementation.
+
+  ```php
+  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+      'auth' => [
+          'user' => 'user@example.com',
+          'token' => 'my-secret-token',
+      ]
+  ]));
+  ```
+
+  On the server side, those data can be accessed using:
+
+  ```js
+  io.use((socket, next) => {
+      const user = socket.handshake.auth.user;
+      const token = socket.handshake.auth.token;
+      // do something with data
+  });
+  ```
+
+* `context`
+  
+  A [stream context](https://www.php.net/manual/en/function.stream-context-create.php) options for the socket stream.
+
+  ```php
+  <?php
+
+  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+      'context' => [
+          'http' => [],
+          'ssl' => [],
+      ]
+  ]));
+  ```
+
+* `persistent`
+
+  The socket connection by default will be using a persistent connection. If you prefer for some
+  reasons to disable it, set `persistent` to `false`.
+
+  ```php
+  <?php
+
+  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+      'persistent' => false
+  ]));
+  ```
 
 ## Documentation
 
-The docs are not written yet, but you should check [the example directory](https://github.com/ElephantIO/elephant.io/tree/master/example)
-to get a basic knowledge on how this library is meant to work.
+The docs are not written yet, but you should check [the example directory](/example) to get a basic
+knowledge on how this library is meant to work.
 
 ## Special Thanks
 
