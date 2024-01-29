@@ -33,6 +33,12 @@ jobs:
       with:
         php-version: ${{ matrix.php-version }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        cache: 'npm'
+        cache-dependency-path: 'example/server/package-lock.json'
+  
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
 
@@ -46,7 +52,19 @@ jobs:
           ${{ runner.os }}-php-
 
     - name: Install dependencies
-      run: composer install --prefer-dist --no-progress
+      run: |
+        composer install --prefer-dist --no-progress
+        cd example/server && npm update
 
     - name: Run test suite
       run: composer run-script test
+
+    - name: Run examples
+      run: |
+        cd example/server && node index.js &
+        sleep 15
+        cd example/client
+        php -f binary-event.php
+        php -f handshake-auth.php
+        php -f header-auth.php
+        php -f keep-alive.php
