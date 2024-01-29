@@ -199,4 +199,27 @@ class Client
                 throw new InvalidArgumentException(sprintf('Unknown engine version %d!', $version));
         }
     }
+
+    /**
+     * Create socket client.
+     *
+     * Available options:
+     * - client: client version
+     * - logger: a Psr\Log\LoggerInterface instance
+     *
+     * Options not listed above will be passed to engine.
+     *
+     * @param string $url
+     * @param array $options
+     * @throws \InvalidArgumentException
+     * @return \ElephantIO\Client
+     */
+    public static function create($url, $options = [])
+    {
+        $version = isset($options['client']) ? $options['client'] : static::CLIENT_4X;
+        $logger = isset($options['logger']) ? $options['logger'] : null;
+        unset($options['client'], $options['logger']);
+
+        return new self(static::engine($version, $url, $options), $logger);
+    }
 }
