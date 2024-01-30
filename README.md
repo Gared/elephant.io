@@ -34,9 +34,12 @@ To use Elephant.io to communicate with socket server is described as follows.
 use ElephantIO\Client;
 
 $url = 'http://localhost:8080';
-$options = [];
 
-$client = new Client(Client::engine(Client::CLIENT_4X, $url, $options));
+// if client option is omitted then it will use latest client available,
+// aka. version 4.x
+$options = ['client' => Client::CLIENT_4X];
+
+$client = Client::create($url, $options);
 $client->initialize();
 $client->of('/');
 
@@ -70,11 +73,12 @@ authentication token, or providing stream context.
   ```php
   <?php
 
-  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+  $options = [
       'headers' => [
           'Authorization' => 'Bearer MYTOKEN',
       ]
-  ]));
+  ];
+  $client = Client::create($url, $options);
   ```
 
 * `auth`
@@ -82,12 +86,15 @@ authentication token, or providing stream context.
   Specify an array to be passed as handshake. The data to be passed depends on the server implementation.
 
   ```php
-  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+  <?php
+
+  $options = [
       'auth' => [
           'user' => 'user@example.com',
           'token' => 'my-secret-token',
       ]
-  ]));
+  ];
+  $client = Client::create($url, $options);
   ```
 
   On the server side, those data can be accessed using:
@@ -107,12 +114,13 @@ authentication token, or providing stream context.
   ```php
   <?php
 
-  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
+  $options = [
       'context' => [
           'http' => [],
           'ssl' => [],
       ]
-  ]));
+  ];
+  $client = Client::create($url, $options);
   ```
 
 * `persistent`
@@ -120,13 +128,15 @@ authentication token, or providing stream context.
   The socket connection by default will be using a persistent connection. If you prefer for some
   reasons to disable it, set `persistent` to `false`.
 
-  ```php
-  <?php
+* `reuse_connection`
 
-  $client = new Client(Client::engine(Client::CLIENT_4X, $url, [
-      'persistent' => false
-  ]));
-  ```
+  Enable or disable existing connection reuse, by default the engine will reuse existing
+  connection. To disable to reuse existing connection set `reuse_connection` to `false`.
+
+* `transports`
+
+  An array of enabled transport. Set to `null` or combination of `polling` or `websocket` to enable
+  specific transport.
 
 ## Documentation
 
