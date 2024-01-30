@@ -55,6 +55,9 @@ abstract class AbstractSocketIO implements EngineInterface
     /** @var string The namespace of the next message */
     protected $namespace = '';
 
+    /** @var string Current socket transport */
+    protected $transport = null;
+
     /** @var mixed[] Array of php stream context options */
     protected $context = [];
 
@@ -92,6 +95,16 @@ abstract class AbstractSocketIO implements EngineInterface
     public function getOptions()
     {
         return $this->options;
+    }
+
+    /**
+     * Get current socket transport.
+     *
+     * @return string
+     */
+    public function getTransport()
+    {
+        return $this->transport;
     }
 
     /** {@inheritDoc} */
