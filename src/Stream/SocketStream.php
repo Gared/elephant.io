@@ -213,6 +213,7 @@ class SocketStream extends AbstractStream
         }
 
         $method = isset($options['method']) ? $options['method'] : 'GET';
+        $timeout = isset($options['timeout']) ? $options['timeout'] : 0;
         $skip_body = isset($options['skip_body']) ? $options['skip_body'] : false;
         $payload = isset($options['payload']) ? $options['payload'] : null;
 
@@ -245,8 +246,12 @@ class SocketStream extends AbstractStream
         // wait for response
         $header = true;
         $len = null;
+        $start = microtime(true);
         $this->logger->debug('Waiting for response!!!');
         while (true) {
+            if ($timeout > 0 && microtime(true) - $start >= $timeout) {
+                break;
+            }
             if (!$this->connected()) {
                 break;
             }
