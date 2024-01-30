@@ -221,12 +221,14 @@ class SocketStream extends AbstractStream
 
             if (null === $contentType) {
                 $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
-                $headers['Content-Type'] = 'text/plain; charset=UTF-8';
-                $headers['Content-Length'] = strlen($payload);
+                $headers = array_merge([
+                    'Content-Type' => 'text/plain; charset=UTF-8',
+                    'Content-Length' => strlen($payload),
+                ], $headers);
             }
         }
 
-        $headers['Host'] = $this->url->getHost();
+        $headers = array_merge(['Host' => $this->url->getHost()], $headers);
         if (isset($this->options['headers'])) {
             $headers = array_merge($headers, $this->options['headers']);
         }
