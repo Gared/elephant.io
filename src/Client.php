@@ -42,8 +42,6 @@ class Client
     /** @var \Psr\Log\LoggerInterface */
     private $logger;
 
-    private $isConnected = false;
-
     public function __construct(EngineInterface $engine, LoggerInterface $logger = null)
     {
         $this->engine = $engine;
@@ -53,15 +51,11 @@ class Client
 
     public function __destruct()
     {
-        if (!$this->isConnected) {
-            return;
-        }
-
         $this->close();
     }
 
     /**
-     * Connects to the websocket
+     * Connect to server.
      *
      * @return \ElephantIO\Client
      */
@@ -71,8 +65,6 @@ class Client
             $this->logger->debug('Connecting to server');
             $this->engine->connect();
             $this->logger->debug('Connected to server');
-
-            $this->isConnected = true;
         } catch (SocketException $e) {
             $this->logger->error('Could not connect to server', ['exception' => $e]);
 
@@ -83,35 +75,21 @@ class Client
     }
 
     /**
-     * Reads a message from the socket
-     *
-     * @param float $timeout Timeout in seconds
-     * @return string Message read from the socket
-     */
-    public function read($timeout = 0)
-    {
-        $this->logger->debug('Reading a new message from socket');
-
-        return $this->engine->read($timeout);
-    }
-
-    /**
-     * Emits a message through the engine
+     * Emit an event to server.
      *
      * @param string $event
      * @param array  $args
-     * @return \ElephantIO\Client
+     * @return int Number of bytes written
      */
     public function emit($event, array $args)
     {
         $this->logger->debug('Sending a new message', ['event' => $event, 'args' => $args]);
-        $this->engine->emit($event, $args);
 
-        return $this;
+        return $this->engine->emit($event, $args);
     }
 
     /**
-     * Wait an event arrived from the engine
+     * Wait an event arrived from server.
      *
      * @param string $event
      * @return \stdClass
@@ -121,6 +99,19 @@ class Client
         $this->logger->debug('Waiting for event', ['event' => $event]);
 
         return $this->engine->wait($event);
+    }
+
+    /**
+     * Read data from socket.
+     *
+     * @param float $timeout Timeout in seconds
+     * @return string Message read from socket
+     */
+    public function read($timeout = 0)
+    {
+        $this->logger->debug('Reading a new message from socket');
+
+        return $this->engine->read($timeout);
     }
 
     /**
@@ -135,36 +126,35 @@ class Client
     }
 
     /**
-     * Sets the namespace for the next messages
+     * Set socket namespace.
      *
-     * @param string namespace the name of the namespace
-     * @return \ElephantIO\Client
+     * @param string $namespace The namespace
+     * @return \stdClass
      */
     public function of($namespace)
     {
         $this->logger->debug('Setting namespace', ['namespace' => $namespace]);
-        $this->engine->of($namespace);
 
-        return $this;
+        return $this->engine->of($namespace);
     }
 
     /**
-     * Closes the connection
+     * Close the connection.
      *
      * @return \ElephantIO\Client
      */
     public function close()
     {
-        $this->logger->debug('Closing connection to server');
-        $this->engine->close();
-
-        $this->isConnected = false;
+        if ($this->engine->connected()) {
+            $this->logger->debug('Closing connection to server');
+            $this->engine->close();
+        }
 
         return $this;
     }
 
     /**
-     * Gets the engine used, for more advanced functions
+     * Gets the engine used, for more advanced functions.
      *
      * @return \ElephantIO\EngineInterface
      */

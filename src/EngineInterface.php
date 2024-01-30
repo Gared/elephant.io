@@ -27,28 +27,32 @@ use Psr\Log\LoggerAwareInterface;
 interface EngineInterface extends LoggerAwareInterface
 {
     /**
-     * Connect to the targeted server
+     * Connect to the targeted server.
+     *
+     * @return \ElephantIO\EngineInterface
      */
     public function connect();
 
     /**
-     * Closes the connection to the websocket
+     * Close connection to server.
+     *
+     * @return \ElephantIO\EngineInterface
      */
     public function close();
 
     /**
-     * Read data from the socket
+     * Is connected to server?
      *
-     * @param float $timeout Timeout in seconds
-     * @return string Data read from the socket
+     * @return bool
      */
-    public function read($timeout = 0);
+    public function connected();
 
     /**
-     * Emits a message through the websocket
+     * Emit an event to server.
      *
      * @param string $event Event to emit
      * @param array  $args  Arguments to send
+     * @return int Number of bytes written
      */
     public function emit($event, array $args);
 
@@ -61,6 +65,14 @@ interface EngineInterface extends LoggerAwareInterface
     public function wait($event);
 
     /**
+     * Read data from socket.
+     *
+     * @param float $timeout Timeout in seconds
+     * @return string Data read from socket
+     */
+    public function read($timeout = 0);
+
+    /**
      * Drain data from socket.
      *
      * @param float $timeout Timeout in seconds
@@ -69,21 +81,22 @@ interface EngineInterface extends LoggerAwareInterface
     public function drain($timeout = 0);
 
     /**
-     * Keeps alive the connection
+     * Keep the connection alive.
      */
     public function keepAlive();
 
     /**
-     * Gets the name of the engine
+     * Get the name of the engine.
      *
      * @return string
      */
     public function getName();
 
     /**
-     * Sets the namespace for the next messages
+     * Set socket namespace.
      *
-     * @param string $namespace the namespace
+     * @param string $namespace The namespace
+     * @return \stdClass
      */
     public function of($namespace);
 

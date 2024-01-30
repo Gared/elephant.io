@@ -50,7 +50,7 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function connect()
     {
-        if ($this->isConnected()) {
+        if ($this->connected()) {
             return;
         }
 
@@ -62,7 +62,7 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function close()
     {
-        if (!$this->isConnected()) {
+        if (!$this->connected()) {
             return;
         }
 
@@ -172,7 +172,7 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function send($code, $message = null)
     {
-        if (!$this->isConnected()) {
+        if (!$this->connected()) {
             return;
         }
         if (!is_int($code) || static::PROTO_OPEN > $code || static::PROTO_NOOP < $code) {

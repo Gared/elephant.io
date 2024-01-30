@@ -91,12 +91,8 @@ abstract class AbstractSocketIO implements EngineInterface
         return $this->options;
     }
 
-    /**
-     * Check if connection has made.
-     *
-     * @return boolean
-     */
-    public function isConnected()
+    /** {@inheritDoc} */
+    public function connected()
     {
         return $this->stream ? $this->stream->connected() : false;
     }
