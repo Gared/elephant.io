@@ -11,6 +11,7 @@
  */
 
 use ElephantIO\Client;
+use ElephantIO\Util;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Psr\Log\LogLevel;
@@ -73,7 +74,7 @@ function truncate_data(&$data, $len = 100)
                 if (($n = strlen($v)) > $len) {
                     $n -= $len;
                     if ($len > 3) {
-                        $v = sprintf('%s... (%d more)', substr($v, 0, $len), $n);
+                        $v = Util::truncate($v);
                     }
                 }
             }

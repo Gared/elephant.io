@@ -25,6 +25,7 @@ use ElephantIO\Exception\UnsuccessfulOperationException;
 use ElephantIO\Exception\UnsupportedTransportException;
 use ElephantIO\Payload\Encoder;
 use ElephantIO\Stream\AbstractStream;
+use ElephantIO\Util;
 
 /**
  * Implements the dialog with Socket.IO version 1.x
@@ -127,7 +128,7 @@ class Version1X extends AbstractSocketIO
     public function drain($timeout = 0, $raw = false)
     {
         if ($data = $this->read($timeout)) {
-            $this->logger->debug(sprintf('Got data: %s', $this->truncate((string) $data)));
+            $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
             if (!$raw) {
                 $packet = $this->decodePacket($data);
                 switch ($packet->proto) {

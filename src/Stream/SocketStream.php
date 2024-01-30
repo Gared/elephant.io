@@ -14,6 +14,8 @@ namespace ElephantIO\Stream;
 
 use RuntimeException;
 
+use ElephantIO\Util;
+
 /**
  * Basic stream to connect to the socket server which behave as an HTTP client.
  *
@@ -179,6 +181,10 @@ class SocketStream extends AbstractStream
                     throw new RuntimeException(sprintf('Unable to write %d data to stream!', strlen($data)));
                 }
                 if ($written > 0) {
+                    $lines = explode(static::EOL, substr($data, 0, $written));
+                    foreach ($lines as $line) {
+                        $this->logger->debug(sprintf('Write data: %s', Util::truncate($line)));
+                    }
                     if (null === $bytes) {
                         $bytes = $written;
                     } else {

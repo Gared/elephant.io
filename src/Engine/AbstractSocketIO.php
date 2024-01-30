@@ -18,6 +18,7 @@ use RuntimeException;
 use ElephantIO\EngineInterface;
 use ElephantIO\Exception\UnsupportedActionException;
 use ElephantIO\Payload\Decoder;
+use ElephantIO\Util;
 
 abstract class AbstractSocketIO implements EngineInterface
 {
@@ -34,7 +35,7 @@ abstract class AbstractSocketIO implements EngineInterface
     /** @var string[] Parse url result */
     protected $url;
 
-    /** @var array cookies received during handshake */
+    /** @var array Cookies received during handshake */
     protected $cookies = [];
 
     /** @var \ElephantIO\Engine\Session Session information */
@@ -49,7 +50,7 @@ abstract class AbstractSocketIO implements EngineInterface
     /** @var \ElephantIO\StreamInterface Resource to the connected stream */
     protected $stream;
 
-    /** @var string the namespace of the next message */
+    /** @var string The namespace of the next message */
     protected $namespace = '';
 
     /** @var mixed[] Array of php stream context options */
@@ -257,19 +258,10 @@ abstract class AbstractSocketIO implements EngineInterface
         }
 
         $data .= $this->readBytes($length);
-        $this->logger->debug(sprintf('Receiving data: %s', $this->truncate($data)));
+        $this->logger->debug(sprintf('Receiving data: %s', Util::truncate($data)));
 
         // decode the payload
         return new Decoder($data);
-    }
-
-    protected function truncate($message, $maxLen = 200)
-    {
-        if ($message && strlen($message) > $maxLen) {
-            $message = sprintf('%s... %d more', substr($message, 0, $maxLen), strlen($message) - $maxLen);
-        }
-
-        return $message;
     }
 
     /** {@inheritDoc} */
@@ -279,7 +271,7 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
-     * Handles deprecated header options in an array
+     * Handles deprecated header options in an array.
      *
      * This function checks the format of the provided array of headers. If the headers are in the old
      * non-associative format (numeric indexed), it triggers a deprecated warning and converts them
@@ -307,15 +299,20 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
-     * Get the defaults options
+     * Get the defaults options.
      *
-     * @return array mixed[] Defaults options for this engine
+     * @return array Defaults options for this engine
      */
     protected function getDefaultOptions()
     {
         return [];
     }
 
+    /**
+     * Get underlying socket stream.
+     *
+     * @return \ElephantIO\StreamInterface
+     */
     public function getStream()
     {
         return $this->stream;

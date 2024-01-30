@@ -68,13 +68,13 @@ class Client
     public function initialize()
     {
         try {
-            $this->logger->debug('Connecting to the websocket');
+            $this->logger->debug('Connecting to server');
             $this->engine->connect();
-            $this->logger->debug('Connected to the server');
+            $this->logger->debug('Connected to server');
 
             $this->isConnected = true;
         } catch (SocketException $e) {
-            $this->logger->error('Could not connect to the server', ['exception' => $e]);
+            $this->logger->error('Could not connect to server', ['exception' => $e]);
 
             throw $e;
         }
@@ -90,7 +90,7 @@ class Client
      */
     public function read($timeout = 0)
     {
-        $this->logger->debug('Reading a new message from the socket');
+        $this->logger->debug('Reading a new message from socket');
 
         return $this->engine->read($timeout);
     }
@@ -142,7 +142,7 @@ class Client
      */
     public function of($namespace)
     {
-        $this->logger->debug('Setting the namespace', ['namespace' => $namespace]);
+        $this->logger->debug('Setting namespace', ['namespace' => $namespace]);
         $this->engine->of($namespace);
 
         return $this;
@@ -155,7 +155,7 @@ class Client
      */
     public function close()
     {
-        $this->logger->debug('Closing the connection to the websocket');
+        $this->logger->debug('Closing connection to server');
         $this->engine->close();
 
         $this->isConnected = false;
