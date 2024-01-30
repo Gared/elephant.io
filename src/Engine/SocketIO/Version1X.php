@@ -45,6 +45,8 @@ class Version1X extends AbstractSocketIO
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
+    public const BINARY_SEPARATOR = "\x1e";
+
     /** {@inheritDoc} */
     public function connect()
     {
@@ -52,6 +54,7 @@ class Version1X extends AbstractSocketIO
             return;
         }
 
+        $this->setTransport($this->options['transport']);
         $this->handshake();
         $this->connectNamespace();
         $this->upgradeTransport();
@@ -64,12 +67,10 @@ class Version1X extends AbstractSocketIO
             return;
         }
 
-        $this->send(static::PROTO_CLOSE);
-
-        $this->stream->close();
-        $this->stream = null;
-        $this->session = null;
-        $this->cookies = [];
+        if ($this->session) {
+            $this->send(static::PROTO_CLOSE);
+        }
+        $this->reset();
     }
 
     /** {@inheritDoc} */
@@ -84,9 +85,17 @@ class Version1X extends AbstractSocketIO
             $this->logger->debug(sprintf('Binary event arguments %s', json_encode($args)));
         }
 
+        if ($this->transport === static::TRANSPORT_POLLING && count($attachments)) {
+            foreach ($attachments as $attachment) {
+                $data .= static::BINARY_SEPARATOR;
+                $data .= 'b' . base64_encode($attachment);
+            }
+        }
         $count = $this->send(static::PROTO_MESSAGE, $type . $data);
-        foreach ($attachments as $attachment) {
-            $count += $this->write($this->getPayload($attachment, Encoder::OPCODE_BINARY));
+        if ($this->transport === static::TRANSPORT_WEBSOCKET) {
+            foreach ($attachments as $attachment) {
+                $count += $this->write($this->getPayload($attachment, Encoder::OPCODE_BINARY));
+            }
         }
 
         return $count;
@@ -124,13 +133,45 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function drain($timeout = 0, $raw = false)
     {
-        if ($data = $this->read($timeout)) {
+        $data = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                if ($this->doPoll() == 200) {
+                    $data = $this->stream->getBody();
+                }
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $data = $this->read($timeout);
+                break;
+        }
+        if (null !== $data) {
             $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
             if (!$raw) {
+                // @see https://socket.io/docs/v4/engine-io-protocol/
+                $binaries = null;
+                if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::BINARY_SEPARATOR)) {
+                    $binaries = explode(static::BINARY_SEPARATOR, $data);
+                    $data = array_shift($binaries);
+                }
                 $packet = $this->decodePacket($data);
+                if ($this->transport === static::TRANSPORT_POLLING && null !== $binaries) {
+                    $packet->type = static::PACKET_EVENT;
+                    for ($i = 0; $i < count($binaries); $i++) {
+                        $prefix = substr($binaries[$i], 0, 1);
+                        if ($prefix !== 'b') {
+                            throw new RuntimeException(sprintf('Unable to decode binary data with prefix "%s"!', $prefix));
+                        }
+                        $this->replaceAttachment($packet->data, $i, base64_decode(substr($binaries[$i], 1)));
+                    }
+                }
                 switch ($packet->proto) {
+                    case static::PROTO_CLOSE:
+                        $this->logger->debug('Connection closed by server');
+                        $this->reset();
+                        throw new RuntimeException('Connection closed by server!');
+                        break;
                     case static::PROTO_PING:
-                        $this->logger->debug('Sending PONG');
+                        $this->logger->debug('Got PING, sending PONG');
                         $this->send(static::PROTO_PONG);
                         break;
                     case static::PROTO_PONG:
@@ -155,15 +196,7 @@ class Version1X extends AbstractSocketIO
         if ($oldns != $namespace) {
             parent::of($namespace);
 
-            $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
-            if (true === ($result = $this->getConfirmedNamespace($packet = $this->drain()))) {
-                return $packet;
-            }
-            if (is_string($result)) {
-                throw new UnsuccessfulOperationException(sprintf('Unable to set namespace: %s!', $result));
-            } else {
-                throw new UnsuccessfulOperationException('Unable to set namespace!');
-            }
+            return $this->switchNamespace($namespace);
         }
     }
 
@@ -177,15 +210,20 @@ class Version1X extends AbstractSocketIO
             throw new InvalidArgumentException('Wrong message type to sent to socket');
         }
 
-        $payload = $this->getPayload($code . $message);
-        if (count($fragments = $payload->encode()->getFragments()) > 1) {
-            throw new RuntimeException(sprintf(
-                'Payload is exceed the maximum allowed length of %d!',
-                $this->options['max_payload']
-            ));
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $payload = $code . $message;
+                return $this->doPoll(null, $payload) ? strlen($payload) : null;
+            case static::TRANSPORT_WEBSOCKET:
+                $payload = $this->getPayload($code . $message);
+                if (count($fragments = $payload->encode()->getFragments()) > 1) {
+                    throw new RuntimeException(sprintf(
+                        'Payload is exceed the maximum allowed length of %d!',
+                        $this->options['max_payload']
+                    ));
+                }
+                return $this->write($fragments[0]);
         }
-
-        return $this->write($fragments[0]);
     }
 
     /**
@@ -197,7 +235,9 @@ class Version1X extends AbstractSocketIO
     protected function write($data)
     {
         $bytes = $this->stream->write($data);
-        $this->session->resetHeartbeat();
+        if ($this->session) {
+            $this->session->resetHeartbeat();
+        }
 
         // wait a little bit of time after this message was sent
         \usleep((int) $this->options['wait']);
@@ -440,75 +480,47 @@ class Version1X extends AbstractSocketIO
     }
 
     /**
-     * Get URI.
+     * Switch and connect to namespace.
      *
-     * @param array $query
-     * @return string
+     * @param string $namespace
+     * @throws \RuntimeException
+     * @throws \ElephantIO\Exception\UnsuccessfulOperationException
+     * @return \stdClass
      */
-    protected function getUri($query)
+    protected function switchNamespace($namespace)
     {
-        $url = $this->stream->getUrl()->getParsed();
-        if (isset($url['query']) && $url['query']) {
-            $query = array_replace($query, $url['query']);
+        if (!$this->session) {
+            throw new RuntimeException('To switch namespace, a session must has been established!');
         }
 
-        return sprintf('/%s/?%s', trim($url['path'], '/'), http_build_query($query));
+        $packet = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $payload = static::PROTO_MESSAGE . static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload());
+                if ($this->doPoll(null, $payload) == 200) {
+                    $this->doPoll();
+                    $packet = $this->decodePacket($this->stream->getBody());
+                }
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
+                $packet = $this->drain();
+                break;
+        }
+
+        if (true === ($result = $this->getConfirmedNamespace($packet))) {
+            return $packet;
+        }
+        if (is_string($result)) {
+            throw new UnsuccessfulOperationException(sprintf('Unable to switch namespace: %s!', $result));
+        } else {
+            throw new UnsuccessfulOperationException('Unable to switch namespace!');
+        }
     }
 
     /**
-     * Perform connection namespace request.
+     * Do the handshake with the socket.io server and populates the `session` value object.
      */
-    protected function requestNamespace()
-    {
-        $this->logger->debug('Requesting namespace');
-
-        $this->createStream();
-
-        $uri = $this->getUri([
-            'EIO' => $this->options['version'],
-            'transport' => $this->options['transport'],
-            't' => Yeast::yeast(),
-            'sid' => $this->session->id,
-        ]);
-        $payload = static::PROTO_MESSAGE . static::PACKET_CONNECT . $this->getAuthPayload();
-
-        $this->stream->request($uri, $this->getDefaultHeaders(), ['method' => 'POST', 'payload' => $payload]);
-        if ($this->stream->getStatusCode() != 200) {
-            throw new ServerConnectionFailureException('unable to perform namespace request');
-        }
-
-        $this->logger->debug('Requesting namespace completed');
-    }
-
-    /**
-     * Perform connection namespace confirmation.
-     */
-    protected function confirmNamespace()
-    {
-        $this->logger->debug('Confirm namespace');
-
-        $this->createStream();
-
-        $uri = $this->getUri([
-            'EIO' => $this->options['version'],
-            'transport' => $this->options['transport'],
-            't' => Yeast::yeast(),
-            'sid' => $this->session->id,
-        ]);
-
-        $this->stream->request($uri, $this->getDefaultHeaders());
-        if (true !== ($result = $this->getConfirmedNamespace($packet = $this->decodePacket($this->stream->getBody())))) {
-            if (is_string($result)) {
-                throw new ServerConnectionFailureException(sprintf('unable to confirm namespace: %s', $result));
-            } else {
-                throw new ServerConnectionFailureException('unable to confirm namespace');
-            }
-        }
-
-        $this->logger->debug('Confirm namespace completed');
-    }
-
-    /** Does the handshake with the Socket.io server and populates the `session` value object */
     protected function handshake()
     {
         if (null !== $this->session) {
@@ -520,20 +532,7 @@ class Version1X extends AbstractSocketIO
         // set timeout to default
         $this->options['timeout'] = $this->defaults['timeout'];
 
-        $this->createStream();
-
-        $query = [
-            'EIO' => $this->options['version'],
-            'transport' => $this->options['transport'],
-            't' => Yeast::yeast(),
-        ];
-        if ($this->options['use_b64']) {
-            $query['b64'] = 1;
-        }
-        $uri = $this->getUri($query);
-
-        $this->stream->request($uri, $this->getDefaultHeaders());
-        if ($this->stream->getStatusCode() != 200) {
+        if ($this->doPoll() != 200) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
@@ -578,14 +577,13 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->options['timeout'] = $this->session->getTimeout();
 
-        $this->requestNamespace();
-        $this->confirmNamespace();
+        $this->switchNamespace($this->namespace);
 
         $this->logger->debug('Namespace connect completed');
     }
 
     /**
-     * Upgrades the transport to WebSocket
+     * Upgrades the transport to WebSocket.
      *
      * FYI:
      * Version "2" is used for the EIO param by socket.io v1
@@ -595,7 +593,8 @@ class Version1X extends AbstractSocketIO
     protected function upgradeTransport()
     {
         // check if websocket upgrade is needed
-        if (!in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades)) {
+        if (!in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades) ||
+            !$this->isTransportEnabled(static::TRANSPORT_WEBSOCKET)) {
             return;
         }
 
@@ -604,31 +603,12 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->options['timeout'] = $this->session->getTimeout();
 
-        $this->createStream();
-
-        $query = [
-            'EIO' => $this->options['version'],
-            'transport' => static::TRANSPORT_WEBSOCKET,
-            't' => Yeast::yeast(),
-            'sid' => $this->session->id,
-        ];
-
-        if ($this->options['version'] === 2 && $this->options['use_b64']) {
-            $query['b64'] = 1;
-        }
-
-        $uri = $this->getUri($query);
-
         $hash = sha1(uniqid(mt_rand(), true), true);
-
         if ($this->options['version'] > 2) {
             $hash = substr($hash, 0, 16);
         }
-
         $key = base64_encode($hash);
-
         $origin = $this->context['headers']['Origin'] ?? '*';
-
         $headers = [
             'Upgrade' => 'websocket',
             'Connection' => 'Upgrade',
@@ -641,10 +621,11 @@ class Version1X extends AbstractSocketIO
             $headers['Cookie'] = implode('; ', $this->cookies);
         }
 
-        $this->stream->request($uri, $headers, ['skip_body' => true]);
-        if ($this->stream->getStatusCode() != 101) {
+        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $headers, ['skip_body' => true]) != 101) {
             throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
         }
+
+        $this->setTransport(static::TRANSPORT_WEBSOCKET);
 
         $this->send(static::PROTO_UPGRADE);
 
@@ -665,5 +646,38 @@ class Version1X extends AbstractSocketIO
             $this->logger->debug('Sending PING');
             $this->send(static::PROTO_PING);
         }
+    }
+
+    /** {@inheritDoc} */
+    protected function getTransports()
+    {
+        return [static::TRANSPORT_POLLING, static::TRANSPORT_WEBSOCKET];
+    }
+
+    protected function buildQueryParameters($transport)
+    {
+        $parameters = [
+            'EIO' => $this->options['version'],
+            'transport' => $transport ?? $this->transport,
+            't' => Yeast::yeast(),
+        ];
+        if ($this->session) {
+            $parameters['sid'] = $this->session->id;
+        }
+        if ($this->options['use_b64']) {
+            $parameters['b64'] = 1;
+        }
+
+        return $parameters;
+    }
+
+    protected function buildQuery($query)
+    {
+        $url = $this->stream->getUrl()->getParsed();
+        if (isset($url['query']) && $url['query']) {
+            $query = array_replace($query, $url['query']);
+        }
+
+        return sprintf('/%s/?%s', trim($url['path'], '/'), http_build_query($query));
     }
 }

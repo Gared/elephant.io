@@ -14,6 +14,7 @@ namespace ElephantIO\Engine;
 
 use Psr\Log\LoggerAwareTrait;
 use DomainException;
+use InvalidArgumentException;
 use RuntimeException;
 use ElephantIO\EngineInterface;
 use ElephantIO\Exception\SocketException;
@@ -83,6 +84,7 @@ abstract class AbstractSocketIO implements EngineInterface
             'wait' => 50, // 50 ms
             'timeout' => \ini_get('default_socket_timeout'),
             'reuse_connection' => true,
+            'transports' => null,
         ], $this->getDefaultOptions());
         $this->options = \array_replace($this->defaults, $options);
     }
@@ -105,6 +107,22 @@ abstract class AbstractSocketIO implements EngineInterface
     public function getTransport()
     {
         return $this->transport;
+    }
+
+    /**
+     * Set current socket transport.
+     *
+     * @param string $transport Socket transport name
+     * @return \ElephantIO\Engine\AbstractSocketIO
+     */
+    public function setTransport($transport)
+    {
+        if (!in_array($transport, $this->getTransports())) {
+            throw new InvalidArgumentException(sprintf('Unsupported transport "%s"!', $transport));
+        }
+        $this->transport = $transport;
+
+        return $this;
     }
 
     /** {@inheritDoc} */
@@ -359,6 +377,89 @@ abstract class AbstractSocketIO implements EngineInterface
             if ($errors = $this->stream->getErrors()) {
                 throw new SocketException($errors[0], $errors[1]);
             }
+        }
+    }
+
+    /**
+     * Check if socket transport is enabled.
+     *
+     * @param string $transport
+     * @return bool
+     */
+    protected function isTransportEnabled($transport)
+    {
+        $transports = $this->options['transports'];
+
+        return
+            null === $transports ||
+            $transport === $transports ||
+            (is_array($transports) && in_array($transport, $transports)) ? true : false;
+    }
+
+    /**
+     * Get supported socket transports.
+     *
+     * @return string[]
+     */
+    protected function getTransports()
+    {
+        return [];
+    }
+
+    /**
+     * Build query parameters.
+     *
+     * @param string $transport
+     * @return array
+     */
+    protected function buildQueryParameters($transport)
+    {
+        return [];
+    }
+
+    /**
+     * Build query from parameters.
+     *
+     * @param array $query
+     * @return string
+     */
+    protected function buildQuery($query)
+    {
+    }
+
+    /**
+     * Perform HTTP polling request.
+     *
+     * @param string $data
+     * @param string $transport
+     * @param array $headers
+     * @param array $options
+     * @return int Response status code
+     */
+    protected function doPoll($transport = null, $data = null, $headers = [], $options = [])
+    {
+        $this->createStream();
+
+        $uri = $this->buildQuery($this->buildQueryParameters($transport));
+        if ($data) {
+            $options['method'] = 'POST';
+            $options['payload'] = $data;
+        }
+        $this->stream->request($uri, array_merge($this->getDefaultHeaders(), $headers), $options);
+
+        return $this->stream->getStatusCode();
+    }
+
+    /**
+     * Do reset.
+     */
+    protected function reset()
+    {
+        if ($this->stream) {
+            $this->stream->close();
+            $this->stream = null;
+            $this->session = null;
+            $this->cookies = [];
         }
     }
 }

@@ -1,6 +1,6 @@
-# ElephantIO Example
+# Elephant.io Example
 
-This examples bellow shows typical ElephantIO usage to connect to socket.io server.
+This examples bellow shows typical Elephant.io usage to connect to socket.io server.
 
 ## Available examples
 
@@ -10,6 +10,7 @@ This examples bellow shows typical ElephantIO usage to connect to socket.io serv
 | Authentication using handshake              | [serve-handshake-auth.js](./server/serve-handshake-auth.js) | [handshake-auth.php](./client/handshake-auth.php) |
 | Authentication using `Authorization` header | [serve-header-auth.js](./server/serve-header-auth.js)       | [header-auth.php](./client/header-auth.php)       |
 | Keep alive                                  | [serve-keep-alive.js](./server/serve-keep-alive.js)         | [keep-alive.php](./client/keep-alive.php)         |
+| Polling                                     | [serve-polling.js](./server/serve-polling.js)               | [polling.php](./client/polling.php)               |
 
 ## Run server part first
 

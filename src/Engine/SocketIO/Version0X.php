@@ -59,12 +59,10 @@ class Version0X extends AbstractSocketIO
             return;
         }
 
-        $this->send(static::PROTO_CLOSE);
-
-        $this->stream->close();
-        $this->stream = null;
-        $this->session = null;
-        $this->cookies = [];
+        if ($this->session) {
+            $this->send(static::PROTO_CLOSE);
+        }
+        $this->reset();
     }
 
     /** {@inheritDoc} */
@@ -102,6 +100,9 @@ class Version0X extends AbstractSocketIO
     protected function write($data)
     {
         $bytes = $this->stream->write($data);
+        if ($this->session) {
+            $this->session->resetHeartbeat();
+        }
 
         // wait a little bit of time after this message was sent
         \usleep((int) $this->options['wait']);
@@ -127,7 +128,7 @@ class Version0X extends AbstractSocketIO
     protected function getDefaultOptions()
     {
         return [
-            'protocol' => 1,
+            'version' => 1,
             'transport' => static::TRANSPORT_WEBSOCKET,
         ];
     }
@@ -157,21 +158,7 @@ class Version0X extends AbstractSocketIO
         // set timeout to default
         $this->options['timeout'] = $this->defaults['timeout'];
 
-        $this->createStream();
-
-        $url = $this->stream->getUrl()->getParsed();
-        $uri = sprintf(
-            '/%s/%d/%s',
-            trim($url['path'], '/'),
-            $this->options['version'],
-            $this->options['transport']
-        );
-        if (isset($url['query'])) {
-            $uri .= '/?' . http_build_query($url['query']);
-        }
-
-        $this->stream->request($uri, $this->getDefaultHeaders());
-        if ($this->stream->getStatusCode() != 200) {
+        if ($this->doPoll() != 200) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
@@ -209,18 +196,8 @@ class Version0X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->options['timeout'] = $this->session->getTimeout();
 
-        $this->createStream();
-
-        $url = $this->stream->getUrl()->getParsed();
-        $uri = sprintf('/%s/%d/%s/%s', trim($url['path'], '/'), $this->options['protocol'], $this->options['transport'], $this->session->id);
-        if (isset($url['query'])) {
-            $uri .= '/?' . http_build_query($url['query']);
-        }
-
         $key = \base64_encode(\sha1(\uniqid(\mt_rand(), true), true));
-
         $origin = $this->context['headers']['Origin'] ?? '*';
-
         $headers = [
             'Upgrade' => 'WebSocket',
             'Connection' => 'Upgrade',
@@ -228,15 +205,40 @@ class Version0X extends AbstractSocketIO
             'Sec-WebSocket-Version' => '13',
             'Origin' => $origin,
         ];
-
         if (!empty($this->cookies)) {
             $headers['Cookie'] = implode('; ', $this->cookies);
         }
-        $this->stream->request($uri, $headers, ['skip_body' => true]);
-        if ($this->stream->getStatusCode() != 101) {
+        if ($this->doPoll(null, null, $headers, ['skip_body' => true]) != 101) {
             throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
         }
 
         $this->logger->debug('Websocket upgrade completed');
+    }
+
+    /** {@inheritDoc} */
+    protected function getTransports()
+    {
+        return [static::TRANSPORT_POLLING, static::TRANSPORT_WEBSOCKET];
+    }
+
+    protected function buildQueryParameters($transport)
+    {
+        $path = [$this->options['version'], $transport ?? $this->options['transport']];
+        if ($this->session) {
+            $path[] = $this->session->id;
+        }
+
+        return ['path' => $path];
+    }
+
+    protected function buildQuery($query)
+    {
+        $url = $this->stream->getUrl()->getParsed();
+        $uri = sprintf('/%s/%s', trim($url['path'], '/'), implode('/', $query['path']));
+        if (isset($url['query'])) {
+            $uri .= '/?' . http_build_query($url['query']);
+        }
+
+        return $uri;
     }
 }

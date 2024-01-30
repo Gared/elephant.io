@@ -62,9 +62,10 @@ jobs:
     - name: Run examples
       run: |
         cd example/server && node index.js &
-        sleep 15
+        sleep 5
         cd example/client
         php -f binary-event.php
         php -f handshake-auth.php
         php -f header-auth.php
         php -f keep-alive.php
+        php -f polling.php
