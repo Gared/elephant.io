@@ -16,8 +16,10 @@ use Psr\Log\LoggerAwareTrait;
 use DomainException;
 use RuntimeException;
 use ElephantIO\EngineInterface;
+use ElephantIO\Exception\SocketException;
 use ElephantIO\Exception\UnsupportedActionException;
 use ElephantIO\Payload\Decoder;
+use ElephantIO\Stream\AbstractStream;
 use ElephantIO\Util;
 
 abstract class AbstractSocketIO implements EngineInterface
@@ -76,7 +78,8 @@ abstract class AbstractSocketIO implements EngineInterface
         $this->defaults = array_merge([
             'debug' => false,
             'wait' => 50, // 50 ms
-            'timeout' => \ini_get('default_socket_timeout')
+            'timeout' => \ini_get('default_socket_timeout'),
+            'reuse_connection' => true,
         ], $this->getDefaultOptions());
         $this->options = \array_replace($this->defaults, $options);
     }
@@ -305,6 +308,18 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
+     * Get connection default headers.
+     *
+     * @return array
+     */
+    protected function getDefaultHeaders()
+    {
+        return [
+            'Connection' => $this->options['reuse_connection'] ? 'keep-alive' : 'close',
+        ];
+    }
+
+    /**
      * Get underlying socket stream.
      *
      * @return \ElephantIO\StreamInterface
@@ -312,5 +327,25 @@ abstract class AbstractSocketIO implements EngineInterface
     public function getStream()
     {
         return $this->stream;
+    }
+
+    /**
+     * Create socket stream.
+     *
+     * @throws \ElephantIO\Exception\SocketException
+     */
+    protected function createStream()
+    {
+        if ($this->stream && !$this->options['reuse_connection']) {
+            $this->logger->debug('Closing socket connection');
+            $this->stream->close();
+            $this->stream = null;
+        }
+        if (!$this->stream) {
+            $this->stream = AbstractStream::create($this->url, $this->context, array_merge($this->options, ['logger' => $this->logger]));
+            if ($errors = $this->stream->getErrors()) {
+                throw new SocketException($errors[0], $errors[1]);
+            }
+        }
     }
 }

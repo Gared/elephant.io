@@ -15,11 +15,8 @@ namespace ElephantIO\Engine\SocketIO;
 use InvalidArgumentException;
 use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Engine\Session;
-use ElephantIO\Exception\SocketException;
-use ElephantIO\Exception\UnsupportedTransportException;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Payload\Encoder;
-use ElephantIO\Stream\AbstractStream;
 
 /**
  * Implements the dialog with Socket.IO version 0.x
@@ -136,24 +133,6 @@ class Version0X extends AbstractSocketIO
     }
 
     /**
-     * Create socket.
-     *
-     * @throws \ElephantIO\Exception\SocketException
-     */
-    protected function createSocket()
-    {
-        if ($this->stream) {
-            $this->logger->debug('Closing socket connection');
-            $this->stream->close();
-            $this->stream = null;
-        }
-        $this->stream = AbstractStream::create($this->url, $this->context, array_merge($this->options, ['logger' => $this->logger]));
-        if ($errors = $this->stream->getErrors()) {
-            throw new SocketException($errors[0], $errors[1]);
-        }
-    }
-
-    /**
      * Create payload.
      *
      * @param string $data
@@ -178,7 +157,7 @@ class Version0X extends AbstractSocketIO
         // set timeout to default
         $this->options['timeout'] = $this->defaults['timeout'];
 
-        $this->createSocket();
+        $this->createStream();
 
         $url = $this->stream->getUrl()->getParsed();
         $uri = sprintf(
@@ -191,7 +170,7 @@ class Version0X extends AbstractSocketIO
             $uri .= '/?' . http_build_query($url['query']);
         }
 
-        $this->stream->request($uri, ['Connection' => 'close']);
+        $this->stream->request($uri, $this->getDefaultHeaders());
         if ($this->stream->getStatusCode() != 200) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
@@ -203,10 +182,6 @@ class Version0X extends AbstractSocketIO
             'pingTimeout' => $sess[2],
             'upgrades' => array_flip(explode(',', $sess[3])),
         ];
-
-        if (!in_array('websocket', $handshake['upgrades'])) {
-            throw new UnsupportedTransportException('websocket');
-        }
 
         $cookies = [];
         foreach ($this->stream->getHeaders() as $header) {
@@ -224,12 +199,17 @@ class Version0X extends AbstractSocketIO
     /** Upgrades the transport to WebSocket */
     protected function upgradeTransport()
     {
+        // check if websocket upgrade is needed
+        if (!in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades)) {
+            return;
+        }
+
         $this->logger->debug('Starting websocket upgrade');
 
         // set timeout based on handshake response
         $this->options['timeout'] = $this->session->getTimeout();
 
-        $this->createSocket();
+        $this->createStream();
 
         $url = $this->stream->getUrl()->getParsed();
         $uri = sprintf('/%s/%d/%s/%s', trim($url['path'], '/'), $this->options['protocol'], $this->options['transport'], $this->session->id);

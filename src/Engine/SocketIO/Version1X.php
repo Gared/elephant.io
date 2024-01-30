@@ -20,10 +20,8 @@ use ElephantIO\Yeast;
 use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Engine\Session;
 use ElephantIO\Exception\ServerConnectionFailureException;
-use ElephantIO\Exception\SocketException;
 use ElephantIO\Exception\UnsuccessfulOperationException;
 use ElephantIO\Payload\Encoder;
-use ElephantIO\Stream\AbstractStream;
 use ElephantIO\Util;
 
 /**
@@ -221,40 +219,7 @@ class Version1X extends AbstractSocketIO
             'use_b64' => false,
             'transport' => static::TRANSPORT_POLLING,
             'max_payload' => 10e7,
-            'reuse_connection' => true,
         ];
-    }
-
-    /**
-     * Get connection default headers.
-     *
-     * @return array
-     */
-    protected function getDefaultHeaders()
-    {
-        return [
-            'Connection' => $this->options['reuse_connection'] ? 'keep-alive' : 'close',
-        ];
-    }
-
-    /**
-     * Create socket.
-     *
-     * @throws \ElephantIO\Exception\SocketException
-     */
-    protected function createSocket()
-    {
-        if ($this->stream && !$this->options['reuse_connection']) {
-            $this->logger->debug('Closing socket connection');
-            $this->stream->close();
-            $this->stream = null;
-        }
-        if (!$this->stream) {
-            $this->stream = AbstractStream::create($this->url, $this->context, array_merge($this->options, ['logger' => $this->logger]));
-            if ($errors = $this->stream->getErrors()) {
-                throw new SocketException($errors[0], $errors[1]);
-            }
-        }
     }
 
     /**
@@ -497,7 +462,7 @@ class Version1X extends AbstractSocketIO
     {
         $this->logger->debug('Requesting namespace');
 
-        $this->createSocket();
+        $this->createStream();
 
         $uri = $this->getUri([
             'EIO' => $this->options['version'],
@@ -522,7 +487,7 @@ class Version1X extends AbstractSocketIO
     {
         $this->logger->debug('Confirm namespace');
 
-        $this->createSocket();
+        $this->createStream();
 
         $uri = $this->getUri([
             'EIO' => $this->options['version'],
@@ -555,7 +520,7 @@ class Version1X extends AbstractSocketIO
         // set timeout to default
         $this->options['timeout'] = $this->defaults['timeout'];
 
-        $this->createSocket();
+        $this->createStream();
 
         $query = [
             'EIO' => $this->options['version'],
@@ -639,7 +604,7 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->options['timeout'] = $this->session->getTimeout();
 
-        $this->createSocket();
+        $this->createStream();
 
         $query = [
             'EIO' => $this->options['version'],
