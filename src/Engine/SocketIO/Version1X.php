@@ -22,7 +22,6 @@ use ElephantIO\Engine\Session;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Exception\SocketException;
 use ElephantIO\Exception\UnsuccessfulOperationException;
-use ElephantIO\Exception\UnsupportedTransportException;
 use ElephantIO\Payload\Encoder;
 use ElephantIO\Stream\AbstractStream;
 use ElephantIO\Util;
@@ -580,10 +579,6 @@ class Version1X extends AbstractSocketIO
             }
         }
 
-        if (null === $handshake || !in_array('websocket', $handshake['upgrades'])) {
-            throw new UnsupportedTransportException('websocket');
-        }
-
         $cookies = [];
         foreach ($this->stream->getHeaders() as $header) {
             $matches = null;
@@ -634,6 +629,11 @@ class Version1X extends AbstractSocketIO
      */
     protected function upgradeTransport()
     {
+        // check if websocket upgrade is needed
+        if (!in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades)) {
+            return;
+        }
+
         $this->logger->debug('Starting websocket upgrade');
 
         // set timeout based on handshake response
