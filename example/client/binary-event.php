@@ -15,17 +15,21 @@ require __DIR__ . '/common.php';
 $namespace = 'binary-event';
 $event = 'test-binary';
 
-$client = setup_client($namespace);
+$logger = setup_logger();
 
 // create binary payload
-$payload100k = __DIR__ . '/../../test/Payload/data/payload-100k.txt';
-$payload = fopen($payload100k, 'rb');
+$filename = __DIR__ . '/../../test/Payload/data/payload-7d.txt';
+$payload = fopen($filename, 'rb');
 $bindata = fopen('php://memory', 'w+');
 fwrite($bindata, '1234567890');
 
-$client->emit($event, ['data1' => ['test' => $payload], 'data2' => $bindata]);
-if ($retval = $client->wait($event)) {
-    truncate_data($retval->data);
-    echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+foreach (['websocket' => [], 'polling' => ['transports' => 'polling']] as $transport => $options) {
+    echo sprintf("Sending binary data using %s transport...\n", $transport);
+    $client = setup_client($namespace, $logger, $options);
+    $client->emit($event, ['data1' => ['test' => $payload], 'data2' => $bindata]);
+    if ($retval = $client->wait($event)) {
+        truncate_data($retval->data);
+        echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+    }
+    $client->close();
 }
-$client->close();
