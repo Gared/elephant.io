@@ -572,15 +572,33 @@ class Version1X extends AbstractSocketIO
         // set timeout to default
         $this->setTimeout($this->defaults['timeout']);
 
-        if ($this->doPoll() != 200) {
+        $success = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $success = $this->doPoll() == 200;
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $success = $this->doPoll(null, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101;
+                break;
+        }
+        if (!$success) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
         $handshake = null;
-        if (count($packets = $this->decodeData($this->stream->getBody()))) {
-            if ($packet = $this->pickPacket($packets, static::PROTO_OPEN)) {
-                $handshake = $packet->data;
-            }
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                if (count($packets = $this->decodeData($this->stream->getBody()))) {
+                    if ($packet = $this->pickPacket($packets, static::PROTO_OPEN)) {
+                        $handshake = $packet->data;
+                    }
+                }
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                if ($packet = $this->drain()) {
+                    $handshake = $packet->data;
+                }
+                break;
         }
         if (null === $handshake) {
             throw new RuntimeException('Handshake is successful but without data!');

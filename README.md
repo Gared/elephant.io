@@ -138,6 +138,35 @@ authentication token, or providing stream context.
   An array of enabled transport. Set to `null` or combination of `polling` or `websocket` to enable
   specific transport.
 
+* `transport`
+
+  Initial socket transport used to connect to server, either `polling` or `websocket` is supported.
+  The default transport used is `polling` and it will be upgraded to `websocket` if the server offer
+  to upgrade and `transports` option does not exclude `websocket`.
+
+  To connect to server with `polling` only transport:
+
+  ```php
+  <?php
+
+  $options = [
+      'transport' => 'polling',     // can be omitted as polling is default transport
+      'transports' => ['polling'],
+  ];
+  $client = Client::create($url, $options);
+  ```
+
+  To connect to server with `websocket` only transport:
+
+  ```php
+  <?php
+
+  $options = [
+      'transport' => 'websocket',
+  ];
+  $client = Client::create($url, $options);
+  ```
+
 ## Documentation
 
 The docs are not written yet, but you should check [the example directory](/example) to get a basic

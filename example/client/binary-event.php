@@ -23,7 +23,10 @@ $payload = fopen($filename, 'rb');
 $bindata = fopen('php://memory', 'w+');
 fwrite($bindata, '1234567890');
 
-foreach (['websocket' => [], 'polling' => ['transports' => 'polling']] as $transport => $options) {
+foreach ([
+    'websocket' => ['transport' => 'websocket'],
+    'polling' => ['transports' => 'polling']
+] as $transport => $options) {
     echo sprintf("Sending binary data using %s transport...\n", $transport);
     $client = setup_client($namespace, $logger, $options);
     $client->emit($event, ['data1' => ['test' => $payload], 'data2' => $bindata]);
