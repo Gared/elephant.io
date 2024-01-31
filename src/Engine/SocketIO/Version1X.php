@@ -542,23 +542,15 @@ class Version1X extends AbstractSocketIO
                 $handshake = $data->data;
             }
         }
-
-        $cookies = [];
-        foreach ($this->stream->getHeaders() as $header) {
-            $matches = null;
-            if (preg_match('/^Set-Cookie:\s*([^;]*)/i', $header, $matches)) {
-                $cookies[] = $matches[1];
-            }
+        if (null === $handshake) {
+            throw new RuntimeException('Handshake is successful but without data!');
         }
-
-        $this->cookies = $cookies;
-        $this->session = new Session(
-            $handshake['sid'],
-            $handshake['pingInterval'] / 1000,
-            $handshake['pingTimeout'] / 1000,
-            $handshake['upgrades'],
-            isset($handshake['maxPayload']) ? $handshake['maxPayload'] : null
-        );
+        array_walk($handshake, function(&$value, $key) {
+            if (in_array($key, ['pingInterval', 'pingTimeout'])) {
+                $value /= 1000;
+            }
+        });
+        $this->storeSession($handshake, $this->stream->getHeaders());
 
         $this->logger->debug(sprintf('Handshake finished with %s', (string) $this->session));
     }

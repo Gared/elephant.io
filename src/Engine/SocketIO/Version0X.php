@@ -169,16 +169,7 @@ class Version0X extends AbstractSocketIO
             'pingTimeout' => $sess[2],
             'upgrades' => array_flip(explode(',', $sess[3])),
         ];
-
-        $cookies = [];
-        foreach ($this->stream->getHeaders() as $header) {
-            $matches = null;
-            if (preg_match('/^Set-Cookie:\s*([^;]*)/i', $header, $matches)) {
-                $cookies[] = $matches[1];
-            }
-        }
-        $this->cookies = $cookies;
-        $this->session = new Session($handshake['sid'], $handshake['pingInterval'], $handshake['pingTimeout'], $handshake['upgrades']);
+        $this->storeSession($handshake, $this->stream->getHeaders());
 
         $this->logger->debug(sprintf('Handshake finished with %s', (string) $this->session));
     }

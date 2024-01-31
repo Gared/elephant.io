@@ -351,6 +351,33 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
+     * Store successful connection handshake as session.
+     *
+     * @param array $handshake
+     * @param array $headers
+     */
+    protected function storeSession($handshake, $headers = [])
+    {
+        $cookies = [];
+        if (is_array($headers) && count($headers)) {
+            foreach ($headers as $header) {
+                $matches = null;
+                if (preg_match('/^Set-Cookie:\s*([^;]*)/i', $header, $matches)) {
+                    $cookies[] = $matches[1];
+                }
+            }
+        }
+        $this->cookies = $cookies;
+        $this->session = new Session(
+            $handshake['sid'],
+            $handshake['pingInterval'],
+            $handshake['pingTimeout'],
+            $handshake['upgrades'],
+            isset($handshake['maxPayload']) ? $handshake['maxPayload'] : null
+        );
+    }
+
+    /**
      * Get underlying socket stream.
      *
      * @return \ElephantIO\StreamInterface
