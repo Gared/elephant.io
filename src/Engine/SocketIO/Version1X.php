@@ -44,7 +44,7 @@ class Version1X extends AbstractSocketIO
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
-    public const BINARY_SEPARATOR = "\x1e";
+    public const SEPARATOR = "\x1e";
 
     /** {@inheritDoc} */
     public function connect()
@@ -86,7 +86,7 @@ class Version1X extends AbstractSocketIO
 
         if ($this->transport === static::TRANSPORT_POLLING && count($attachments)) {
             foreach ($attachments as $attachment) {
-                $data .= static::BINARY_SEPARATOR;
+                $data .= static::SEPARATOR;
                 $data .= 'b' . base64_encode($attachment);
             }
         }
@@ -132,6 +132,7 @@ class Version1X extends AbstractSocketIO
     /** {@inheritDoc} */
     public function drain($timeout = 0, $raw = false)
     {
+        $result = null;
         $data = null;
         switch ($this->transport) {
             case static::TRANSPORT_POLLING:
@@ -147,45 +148,61 @@ class Version1X extends AbstractSocketIO
             $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
             if (!$raw) {
                 // @see https://socket.io/docs/v4/engine-io-protocol/
-                $binaries = null;
-                if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::BINARY_SEPARATOR)) {
-                    $binaries = explode(static::BINARY_SEPARATOR, $data);
-                    $data = array_shift($binaries);
+                $packets = [];
+                if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::SEPARATOR)) {
+                    $packets = explode(static::SEPARATOR, $data);
+                } else {
+                    $packets[] = $data;
                 }
-                $packet = $this->decodePacket($data);
-                if ($this->transport === static::TRANSPORT_POLLING && null !== $binaries) {
-                    $packet->type = static::PACKET_EVENT;
-                    for ($i = 0; $i < count($binaries); $i++) {
-                        $prefix = substr($binaries[$i], 0, 1);
-                        if ($prefix !== 'b') {
-                            throw new RuntimeException(sprintf('Unable to decode binary data with prefix "%s"!', $prefix));
+                while (count($packets)) {
+                    $data = array_shift($packets);
+                    $packet = $this->decodePacket($data);
+                    if ($this->transport === static::TRANSPORT_POLLING &&
+                        $packet->proto === static::PROTO_MESSAGE &&
+                        $packet->type === static::PACKET_BINARY_EVENT) {
+                        $packet->type = static::PACKET_EVENT;
+                        for ($i = 0; $i < $packet->binCount; $i++) {
+                            $bindata = array_shift($packets);
+                            $prefix = substr($bindata, 0, 1);
+                            if ($prefix !== 'b') {
+                                throw new RuntimeException(sprintf('Unable to decode binary data with prefix "%s"!', $prefix));
+                            }
+                            $this->replaceAttachment($packet->data, $i, base64_decode(substr($bindata, 1)));
                         }
-                        $this->replaceAttachment($packet->data, $i, base64_decode(substr($binaries[$i], 1)));
+                    }
+                    switch ($packet->proto) {
+                        case static::PROTO_CLOSE:
+                            $this->logger->debug('Connection closed by server');
+                            $this->reset();
+                            throw new RuntimeException('Connection closed by server!');
+                        case static::PROTO_PING:
+                            $this->logger->debug('Got PING, sending PONG');
+                            $this->send(static::PROTO_PONG);
+                            break;
+                        case static::PROTO_PONG:
+                            $this->logger->debug('Got PONG');
+                            break;
+                        case static::PROTO_NOOP:
+                            break;
+                        default:
+                            if (null === $result) {
+                                $result = $packet;
+                            } else {
+                                if (!isset($result->next)) {
+                                    $result->next = [];
+                                }
+                                $result->next[] = $packet;
+                            }
+                            break;
                     }
                 }
-                switch ($packet->proto) {
-                    case static::PROTO_CLOSE:
-                        $this->logger->debug('Connection closed by server');
-                        $this->reset();
-                        throw new RuntimeException('Connection closed by server!');
-                        break;
-                    case static::PROTO_PING:
-                        $this->logger->debug('Got PING, sending PONG');
-                        $this->send(static::PROTO_PONG);
-                        break;
-                    case static::PROTO_PONG:
-                        $this->logger->debug('Got PONG');
-                        break;
-                    case static::PROTO_NOOP:
-                        break;
-                    default:
-                        return $packet;
-                }
             } else {
-                return $data;
+                $result = $data;
             }
         }
         $this->keepAlive();
+
+        return $result;
     }
 
     /** {@inheritDoc} */
