@@ -351,6 +351,31 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
+     * Get websocket upgrade headers.
+     *
+     * @return array
+     */
+    protected function getUpgradeHeaders()
+    {
+        $hash = sha1(uniqid(mt_rand(), true), true);
+        if ($this->options['version'] > 2) {
+            $hash = substr($hash, 0, 16);
+        }
+        $headers = [
+            'Upgrade' => 'websocket',
+            'Connection' => 'Upgrade',
+            'Sec-WebSocket-Key' => base64_encode($hash),
+            'Sec-WebSocket-Version' => '13',
+            'Origin' => $this->context['headers']['Origin'] ?? '*',
+        ];
+        if (!empty($this->cookies)) {
+            $headers['Cookie'] = implode('; ', $this->cookies);
+        }
+
+        return $headers;
+    }
+
+    /**
      * Store successful connection handshake as session.
      *
      * @param array $handshake

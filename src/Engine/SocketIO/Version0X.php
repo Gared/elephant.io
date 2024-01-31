@@ -14,7 +14,6 @@ namespace ElephantIO\Engine\SocketIO;
 
 use InvalidArgumentException;
 use ElephantIO\Engine\AbstractSocketIO;
-use ElephantIO\Engine\Session;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Payload\Encoder;
 
@@ -187,19 +186,7 @@ class Version0X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        $key = \base64_encode(\sha1(\uniqid(\mt_rand(), true), true));
-        $origin = $this->context['headers']['Origin'] ?? '*';
-        $headers = [
-            'Upgrade' => 'WebSocket',
-            'Connection' => 'Upgrade',
-            'Sec-WebSocket-Key' => $key,
-            'Sec-WebSocket-Version' => '13',
-            'Origin' => $origin,
-        ];
-        if (!empty($this->cookies)) {
-            $headers['Cookie'] = implode('; ', $this->cookies);
-        }
-        if ($this->doPoll(null, null, $headers, ['skip_body' => true]) != 101) {
+        if ($this->doPoll(null, null, $this->getUpgradeHeaders(), ['skip_body' => true]) != 101) {
             throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
         }
 

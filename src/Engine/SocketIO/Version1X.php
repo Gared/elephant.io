@@ -18,7 +18,6 @@ use stdClass;
 use ElephantIO\SequenceReader;
 use ElephantIO\Yeast;
 use ElephantIO\Engine\AbstractSocketIO;
-use ElephantIO\Engine\Session;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Exception\UnsuccessfulOperationException;
 use ElephantIO\Payload\Encoder;
@@ -595,25 +594,7 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        $hash = sha1(uniqid(mt_rand(), true), true);
-        if ($this->options['version'] > 2) {
-            $hash = substr($hash, 0, 16);
-        }
-        $key = base64_encode($hash);
-        $origin = $this->context['headers']['Origin'] ?? '*';
-        $headers = [
-            'Upgrade' => 'websocket',
-            'Connection' => 'Upgrade',
-            'Sec-WebSocket-Key' => $key,
-            'Sec-WebSocket-Version' => '13',
-            'Origin' => $origin,
-        ];
-
-        if (!empty($this->cookies)) {
-            $headers['Cookie'] = implode('; ', $this->cookies);
-        }
-
-        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $headers, ['skip_body' => true]) != 101) {
+        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) != 101) {
             throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
         }
 
