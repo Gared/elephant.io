@@ -305,11 +305,33 @@ class Version1X extends AbstractSocketIO
         $result = [];
         $seq = new SequenceReader($data);
         while (!$seq->isEof()) {
-            if (null === ($len = $this->options['version'] >= 4 ? strlen($seq->getData()) : $seq->readUntil(':'))) {
+            $len = null;
+            switch (true) {
+                case $this->options['version'] >= 4:
+                    $len = strlen($seq->getData());
+                    break;
+                case $this->options['version'] >= 3:
+                    $len = (int) $seq->readUntil(':');
+                    break;
+                case $this->options['version'] >= 2:
+                    $prefix = $seq->read();
+                    if (ord($prefix) === 0) {
+                        $len = 0;
+                        $sizes = $seq->readUntil("\xff");
+                        $n = strlen($sizes) - 1;
+                        for ($i = 0; $i <= $n; $i++) {
+                            $len += ord($sizes[$i]) * pow(10, $n - $i);
+                        }
+                    } else {
+                        throw new RuntimeException('Unsupported encoding detected!');
+                    }
+                    break;
+            }
+            if (null === $len) {
                 throw new RuntimeException('Data delimiter not found!');
             }
 
-            $result[] = $this->decodePacket($seq->read((int) $len));
+            $result[] = $this->decodePacket($seq->read($len));
         }
 
         return $result;
