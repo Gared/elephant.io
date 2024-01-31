@@ -354,17 +354,21 @@ class Version1X extends AbstractSocketIO
         $proto = (int) $seq->read();
         if ($proto >= static::PROTO_OPEN && $proto <= static::PROTO_NOOP) {
             $packet = new stdClass();
-            $packet->data = null;
             $packet->proto = $proto;
-            $packet->type = (int) $seq->read();
-            if ($packet->type === static::PACKET_BINARY_EVENT) {
-                $packet->binCount = (int) $seq->readUntil('-');
-                $seq->read();
-            }
-            $packet->nsp = $seq->readUntil(',[{', ['[', '{']);
-
+            $packet->data = null;
             switch ($packet->proto) {
+                case static::PROTO_OPEN:
+                    if (!$seq->isEof()) {
+                        $packet->data = json_decode($seq->getData(), true);
+                    }
+                    break;
                 case static::PROTO_MESSAGE:
+                    $packet->type = (int) $seq->read();
+                    if ($packet->type === static::PACKET_BINARY_EVENT) {
+                        $packet->binCount = (int) $seq->readUntil('-');
+                        $seq->read();
+                    }
+                    $packet->nsp = $seq->readUntil(',[{', ['[', '{']);
                     if (null !== ($data = json_decode($seq->getData(), true))) {
                         switch ($packet->type) {
                             case static::PACKET_EVENT:
@@ -377,6 +381,11 @@ class Version1X extends AbstractSocketIO
                                 $packet->data = $data;
                                 break;
                         }
+                    }
+                    break;
+                default:
+                    if (!$seq->isEof()) {
+                        $packet->data = $seq->getData();
                     }
                     break;
             }
