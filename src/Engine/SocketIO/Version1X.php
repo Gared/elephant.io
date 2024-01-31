@@ -309,35 +309,24 @@ class Version1X extends AbstractSocketIO
                 throw new RuntimeException('Data delimiter not found!');
             }
 
-            $dseq = new SequenceReader($seq->read((int) $len));
-            $type = (int) $dseq->read();
-            $packet = $dseq->getData();
-            switch ($type) {
-                case static::PACKET_CONNECT:
-                    $packet = json_decode($packet, true);
-                    break;
-            }
-            $item = new stdClass();
-            $item->type = $type;
-            $item->data = $packet;
-            $result[] = $item;
+            $result[] = $this->decodePacket($seq->read((int) $len));
         }
 
         return $result;
     }
 
     /**
-     * Pick data which has a type.
+     * Pick packet with matched protocol.
      *
-     * @param array $data
-     * @param int $type
+     * @param array $packets
+     * @param int $proto
      * @return \stdClass
      */
-    protected function pickData($data, $type)
+    protected function pickPacket($packets, $proto)
     {
-        foreach ($data as $item) {
-            if (isset($item->type) && $item->type === $type) {
-                return $item;
+        foreach ($packets as $packet) {
+            if ($packet->proto === $proto) {
+                return $packet;
             }
         }
     }
@@ -562,9 +551,9 @@ class Version1X extends AbstractSocketIO
         }
 
         $handshake = null;
-        if (count($data = $this->decodeData($this->stream->getBody()))) {
-            if ($data = $this->pickData($data, static::PACKET_CONNECT)) {
-                $handshake = $data->data;
+        if (count($packets = $this->decodeData($this->stream->getBody()))) {
+            if ($packet = $this->pickPacket($packets, static::PROTO_OPEN)) {
+                $handshake = $packet->data;
             }
         }
         if (null === $handshake) {
