@@ -381,6 +381,24 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
+     * Update or set connection timeout.
+     *
+     * @param int $timeout
+     * @return \ElephantIO\Engine\AbstractSocketIO
+     */
+    protected function setTimeout($timeout)
+    {
+        // stream already established?
+        if ($this->options['reuse_connection'] && $this->stream) {
+            $this->stream->setTimeout($timeout);
+        } else {
+            $this->options['timeout'] = $timeout;
+        }
+
+        return $this;
+    }
+
+    /**
      * Check if socket transport is enabled.
      *
      * @param string $transport

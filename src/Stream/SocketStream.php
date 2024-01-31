@@ -61,9 +61,34 @@ class SocketStream extends AbstractStream
      *
      * @return int
      */
-    protected function getTimeout()
+    public function getTimeout()
     {
         return isset($this->options['timeout']) ? $this->options['timeout'] : 5;
+    }
+
+    /**
+     * Set connection timeout.
+     *
+     * @param int $timeout
+     */
+    public function setTimeout($timeout)
+    {
+        if ($this->getTimeout() != $timeout) {
+            $this->options['timeout'] = $timeout;
+            $this->applyTimeout($timeout);
+        }
+    }
+
+    /**
+     * Apply connection timeout to underlying stream.
+     *
+     * @param int $timeout
+     */
+    protected function applyTimeout($timeout)
+    {
+        if (is_resource($this->handle)) {
+            stream_set_timeout($this->handle, $timeout);
+        }
     }
 
     /**
@@ -140,8 +165,8 @@ class SocketStream extends AbstractStream
         );
 
         if (is_resource($this->handle)) {
-            stream_set_timeout($this->handle, $timeout);
             stream_set_blocking($this->handle, false);
+            $this->applyTimeout($timeout);
         } else {
             $this->errors = $errors;
         }

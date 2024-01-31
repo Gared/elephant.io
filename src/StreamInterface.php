@@ -105,4 +105,18 @@ interface StreamInterface
      * @return string
      */
     public function getBody();
+
+    /**
+     * Get connection timeout (in second).
+     *
+     * @return int
+     */
+    public function getTimeout();
+
+    /**
+     * Set connection timeout.
+     *
+     * @param int $timeout Timeout in second
+     */
+    public function setTimeout($timeout);
 }

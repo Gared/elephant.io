@@ -156,7 +156,7 @@ class Version0X extends AbstractSocketIO
         $this->logger->debug('Starting handshake');
 
         // set timeout to default
-        $this->options['timeout'] = $this->defaults['timeout'];
+        $this->setTimeout($this->defaults['timeout']);
 
         if ($this->doPoll() != 200) {
             throw new ServerConnectionFailureException('unable to perform handshake');
@@ -194,7 +194,7 @@ class Version0X extends AbstractSocketIO
         $this->logger->debug('Starting websocket upgrade');
 
         // set timeout based on handshake response
-        $this->options['timeout'] = $this->session->getTimeout();
+        $this->setTimeout($this->session->getTimeout());
 
         $key = \base64_encode(\sha1(\uniqid(\mt_rand(), true), true));
         $origin = $this->context['headers']['Origin'] ?? '*';
