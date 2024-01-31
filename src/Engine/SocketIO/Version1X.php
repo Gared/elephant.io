@@ -461,9 +461,13 @@ class Version1X extends AbstractSocketIO
      */
     protected function getConfirmedNamespace($packet)
     {
-        if ($packet && is_array($packet->data)) {
-            if (!isset($packet->data['sid'])) {
-                return isset($packet->data['message']) ? $packet->data['message'] : false;
+        if ($packet &&
+            $packet->proto === static::PROTO_MESSAGE &&
+            $packet->type === static::PACKET_CONNECT) {
+            if ($this->options['version'] >= 4) {
+                if (!isset($packet->data['sid'])) {
+                    return isset($packet->data['message']) ? $packet->data['message'] : false;
+                }
             }
 
             return true;
