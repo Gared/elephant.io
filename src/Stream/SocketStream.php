@@ -282,21 +282,23 @@ class SocketStream extends AbstractStream
             }
             if ($content = ($header || $len === null) ? fgets($this->handle) : fread($this->handle, (int) $len)) {
                 $this->logger->debug(sprintf('Receive: %s', trim($content)));
-                if ($content === static::EOL && $header) {
+                if ($content === static::EOL && $header && count($this->result['headers'])) {
                     if ($skip_body) {
                         break;
                     }
                     $header = false;
                 } else {
                     if ($header) {
-                        $this->result['headers'][] = trim($content);
-                        if (null === $len && 0 === stripos($content, 'Content-Length:')) {
-                            $len = (int) trim(substr($content, 16));
+                        if ($content = trim($content)) {
+                            $this->result['headers'][] = $content;
+                            if (null === $len && 0 === stripos($content, 'Content-Length:')) {
+                                $len = (int) trim(substr($content, 16));
+                            }
                         }
                     } else {
                         $this->result['body'] .= $content;
-                        $isChunkEnd = $len === null && substr($content, -3) === '0' . static::EOL;
-                        if ($isChunkEnd) {
+                        $chunked = $len === null && substr($content, -3) === '0' . static::EOL;
+                        if ($chunked) {
                             $this->result['body'] = $this->decodeChunked($this->result['body']);
                             break;
                         }
