@@ -653,20 +653,24 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) != 101) {
-            throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
+        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101) {
+            $this->setTransport(static::TRANSPORT_WEBSOCKET);
+
+            $this->send(static::PROTO_UPGRADE);
+
+            // ensure got packet connect on socket.io 1.x
+            if ($this->options['version'] === 2 && $packet = $this->drain()) {
+                if ($packet->proto === static::PROTO_MESSAGE && $packet->type === static::PACKET_CONNECT) {
+                    $this->logger->debug('Upgrade successfully confirmed');
+                } else {
+                    $this->logger->debug('Upgrade not confirmed');
+                }
+            }
+    
+            $this->logger->debug('Websocket upgrade completed');
+        } else {
+            $this->logger->debug('Upgrade failed, skipping websocket');
         }
-
-        $this->setTransport(static::TRANSPORT_WEBSOCKET);
-
-        $this->send(static::PROTO_UPGRADE);
-
-        //remove message '40' from buffer, emmiting by socket.io after receiving static::PROTO_UPGRADE
-        if ($this->options['version'] === 2) {
-            $this->read();
-        }
-
-        $this->logger->debug('Websocket upgrade completed');
     }
 
     /**

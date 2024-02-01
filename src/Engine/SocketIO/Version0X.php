@@ -186,11 +186,11 @@ class Version0X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        if ($this->doPoll(null, null, $this->getUpgradeHeaders(), ['skip_body' => true]) != 101) {
-            throw new ServerConnectionFailureException('unable to upgrade to WebSocket');
+        if ($this->doPoll(null, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101) {
+            $this->logger->debug('Websocket upgrade completed');
+        } else {
+            $this->logger->debug('Upgrade failed, skipping websocket');
         }
-
-        $this->logger->debug('Websocket upgrade completed');
     }
 
     /** {@inheritDoc} */
