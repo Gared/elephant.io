@@ -41,9 +41,6 @@ class Version1X extends AbstractSocketIO
     public const PROTO_UPGRADE = 5;
     public const PROTO_NOOP = 6;
 
-    public const TRANSPORT_POLLING = 'polling';
-    public const TRANSPORT_WEBSOCKET = 'websocket';
-
     public const SEPARATOR = "\x1e";
 
     /** {@inheritDoc} */
@@ -492,29 +489,6 @@ class Version1X extends AbstractSocketIO
                 }
             }
 
-            return true;
-        }
-    }
-
-    /**
-     * Concatenate namespace with data using separator.
-     *
-     * @param string $namespace
-     * @param string $data
-     * @return string
-     */
-    protected function concatNamespace($namespace, $data)
-    {
-        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
-            $namespace .= ',';
-        }
-
-        return $namespace . $data;
-    }
-
-    protected function matchNamespace($namespace)
-    {
-        if ($namespace === $this->namespace || (substr($this->namespace, 1) === $namespace)) {
             return true;
         }
     }

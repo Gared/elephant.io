@@ -37,9 +37,6 @@ class Version0X extends AbstractSocketIO
     public const PROTO_ERROR = 7;
     public const PROTO_NOOP = 8;
 
-    public const TRANSPORT_POLLING = 'xhr-polling';
-    public const TRANSPORT_WEBSOCKET = 'websocket';
-
     /** {@inheritDoc} */
     public function connect()
     {

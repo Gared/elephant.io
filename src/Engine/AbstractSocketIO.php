@@ -35,6 +35,9 @@ abstract class AbstractSocketIO implements EngineInterface
     public const PACKET_BINARY_EVENT = 5;
     public const PACKET_BINARY_ACK = 6;
 
+    public const TRANSPORT_POLLING = 'polling';
+    public const TRANSPORT_WEBSOCKET = 'websocket';
+
     /** @var string[] Parse url result */
     protected $url;
 
@@ -152,6 +155,50 @@ abstract class AbstractSocketIO implements EngineInterface
     public function of($namespace)
     {
         $this->namespace = $namespace;
+    }
+
+    /**
+     * Normalize namespace.
+     *
+     * @param string $namespace
+     * @return string
+     */
+    protected function normalizeNamespace($namespace)
+    {
+        if ($namespace && substr($namespace, 0, 1) === '/') {
+            $namespace = substr($namespace, 1);
+        }
+
+        return $namespace;
+    }
+
+    /**
+     * Is namespace match?
+     *
+     * @param string $namespace
+     * @return bool
+     */
+    protected function matchNamespace($namespace)
+    {
+        if ($namespace === $this->namespace || $this->normalizeNamespace($this->namespace) === $namespace) {
+            return true;
+        }
+    }
+
+    /**
+     * Concatenate namespace with data using separator.
+     *
+     * @param string $namespace
+     * @param string $data
+     * @return string
+     */
+    protected function concatNamespace($namespace, $data)
+    {
+        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
+            $namespace .= ',';
+        }
+
+        return $namespace . $data;
     }
 
     /**
