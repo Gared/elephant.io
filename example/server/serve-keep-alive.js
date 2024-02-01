@@ -31,6 +31,7 @@ class KeepAliveServer extends ExampleServer {
                     socket.emit('message', {success: true});
                 });
         });
+        return true;
     }
 }
 

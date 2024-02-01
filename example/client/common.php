@@ -19,6 +19,22 @@ use Psr\Log\LogLevel;
 require __DIR__ . '/../../vendor/autoload.php';
 
 /**
+ * Get or set client version to use.
+ *
+ * @param int $version Version to set
+ * @return int
+ */
+function client_version($version = null)
+{
+    static $client = Client::CLIENT_4X; // default client version
+    if (null !== $version) {
+        $client = $version;
+    }
+
+    return $client;
+}
+
+/**
  * Create a logger channel.
  *
  * @return \Monolog\Logger
@@ -48,7 +64,7 @@ function setup_client($namespace, $logger = null, $options = [])
     $url = 'http://localhost:14000';
 
     $logger = $logger ?? setup_logger();
-    $client = Client::create($url, array_merge(['client' => Client::CLIENT_4X, 'logger' => $logger], $options));
+    $client = Client::create($url, array_merge(['client' => client_version(), 'logger' => $logger], $options));
     $client->initialize();
     if ($namespace) {
         $client->of(sprintf('/%s', $namespace));

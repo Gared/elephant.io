@@ -23,6 +23,9 @@ class HeaderAuthServer extends ExampleServer {
     }
 
     handle() {
+        if (!this.nsp.use) {
+            return;
+        }
         this.nsp.use((socket, next) => {
             const auth = socket.request.headers.authorization;
             const user = socket.request.headers.user;
@@ -70,6 +73,7 @@ class HeaderAuthServer extends ExampleServer {
                     socket.emit('message', reply);
                 });
         });
+        return true;
     }
 }
 

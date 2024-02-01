@@ -11,7 +11,8 @@
 const fs = require('fs');
 const path = require('path');
 const server = require('http').createServer();
-const io = require('socket.io')(server);
+const socketio = require('socket.io');
+const io = typeof socketio === 'function' ? socketio(server) : socketio.listen(server);
 
 const port = 14000;
 const dir = __dirname;
@@ -22,8 +23,7 @@ files.forEach(file => {
     if (file.startsWith('serve-')) {
         const Svr = require(path.join(dir, file));
         const s = new Svr(io);
-        if (s.nsp) {
-            s.handle();
+        if (s.nsp && s.handle()) {
             console.log('Serve %s...', s.namespace ? s.namespace : '/');
         }
     }

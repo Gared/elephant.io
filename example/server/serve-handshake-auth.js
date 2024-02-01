@@ -20,6 +20,9 @@ class HandshakeAuthServer extends ExampleServer {
     }
 
     handle() {
+        if (!this.nsp.use) {
+            return;
+        }
         this.nsp.use((socket, next) => {
             const user = socket.handshake.auth.user;
             const token = socket.handshake.auth.token;
@@ -47,6 +50,7 @@ class HandshakeAuthServer extends ExampleServer {
                     socket.emit('echo', message);
                 });
         });
+        return true;
     }
 }
 

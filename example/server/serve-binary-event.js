@@ -44,6 +44,7 @@ class BinaryEventServer extends ExampleServer {
                     socket.emit('test-binary', {success: true, time: Buffer.from(new Date().toString()), payload: payload});
                 });
         });
+        return true;
     }
 }
 

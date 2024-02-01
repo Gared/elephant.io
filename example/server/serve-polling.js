@@ -31,6 +31,7 @@ class PollingServer extends ExampleServer {
                     socket.emit('message', data);
                 });
         });
+        return true;
     }
 }
 
