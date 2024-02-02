@@ -46,6 +46,11 @@ class SocketStream extends AbstractStream
     protected $metadata = null;
 
     /**
+     * @var bool
+     */
+    protected $chunked = null;
+
+    /**
      * {@inheritDoc}
      */
     protected function initialize()
@@ -135,6 +140,21 @@ class SocketStream extends AbstractStream
             array_keys($headers),
             $headers
         );
+    }
+
+    /**
+     * Get match for header name.
+     *
+     * @param string $name
+     * @param string $header
+     * @return string
+     */
+    public function getHeaderMatch($name, $header)
+    {
+        $prefix = sprintf('%s:', $name);
+        if (0 === stripos($header, $prefix)) {
+            return trim(substr($header, strlen($prefix)));
+        }
     }
 
     /**
@@ -291,14 +311,18 @@ class SocketStream extends AbstractStream
                     if ($header) {
                         if ($content = trim($content)) {
                             $this->result['headers'][] = $content;
-                            if (null === $len && 0 === stripos($content, 'Content-Length:')) {
-                                $len = (int) trim(substr($content, 16));
+                            if (null === $len && ($contentLength = $this->getHeaderMatch('Content-Length', $content))) {
+                                $len = (int) $contentLength;
+                            }
+                            if (null === $this->chunked &&
+                                ($transferEncoding = $this->getHeaderMatch('Transfer-Encoding', $content)) &&
+                                strtolower($transferEncoding) === 'chunked') {
+                                $this->chunked = true;
                             }
                         }
                     } else {
                         $this->result['body'] .= $content;
-                        $chunked = $len === null && substr($content, -3) === '0' . static::EOL;
-                        if ($chunked) {
+                        if ($this->chunked && null === $len && $content === '0' . static::EOL) {
                             $this->result['body'] = $this->decodeChunked($this->result['body']);
                             break;
                         }
