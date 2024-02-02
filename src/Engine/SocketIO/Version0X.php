@@ -19,7 +19,6 @@ use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Payload\Encoder;
 use ElephantIO\SequenceReader;
-use ElephantIO\Util;
 
 /**
  * Implements the dialog with Socket.IO version 0.x
@@ -41,75 +40,12 @@ class Version0X extends AbstractSocketIO
     public const PROTO_ERROR = 7;
     public const PROTO_NOOP = 8;
 
-    /** {@inheritDoc} */
-    public function connect()
-    {
-        if ($this->connected()) {
-            return;
-        }
-
-        $this->setTransport($this->options['transport']);
-        $this->handshake();
-        $this->upgradeTransport();
-    }
-
-    /** {@inheritDoc} */
-    public function close()
-    {
-        if (!$this->connected()) {
-            return;
-        }
-
-        if ($this->session) {
-            $this->send(static::PROTO_DISCONNECT);
-        }
-        $this->reset();
-    }
+    public const SEPARATOR = "\u{fffd}";
 
     /** {@inheritDoc} */
     public function emit($event, array $args)
     {
-        $this->send(static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $args]));
-    }
-
-    /** {@inheritDoc} */
-    public function wait($event)
-    {
-        while (true) {
-            if ($packet = $this->drain(0)) {
-                if ($packet->proto === static::PROTO_EVENT && $this->matchNamespace($packet->nsp)) {
-                    return $packet;
-                }
-            }
-        }
-    }
-
-    /** {@inheritDoc} */
-    public function drain($timeout = 0)
-    {
-        $result = null;
-        $data = $this->read($timeout);
-        if (null !== $data) {
-            $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
-            $packet = $this->decodePacket($data);
-            switch ($packet->proto) {
-                case static::PROTO_DISCONNECT:
-                    $this->logger->debug('Connection closed by server');
-                    $this->reset();
-                    throw new RuntimeException('Connection closed by server!');
-                case static::PROTO_HEARTBEAT:
-                    $this->logger->debug('Got HEARTBEAT');
-                    $this->send(static::PROTO_HEARTBEAT);
-                    break;
-                case static::PROTO_NOOP:
-                    break;
-                default:
-                    $result = $packet;
-                    break;
-            }
-        }
-
-        return $result;
+        $this->send(static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)]));
     }
 
     /** {@inheritDoc} */
@@ -121,28 +57,14 @@ class Version0X extends AbstractSocketIO
         if (!is_int($code) || $code < static::PROTO_DISCONNECT || $code > static::PROTO_NOOP) {
             throw new InvalidArgumentException('Wrong message type to sent to socket');
         }
-        $payload = $this->getPayload($code . '::' . $this->normalizeNamespace($this->namespace) . ($message ? ':' . $message : ''));
 
-        return $this->write((string) $payload);
-    }
-
-    /**
-     * Write to the stream.
-     *
-     * @param string $data
-     * @return int
-     */
-    protected function write($data)
-    {
-        $bytes = $this->stream->write($data);
-        if ($this->session) {
-            $this->session->resetHeartbeat();
+        $payload = $code . '::' . $this->normalizeNamespace($this->namespace) . ($message ? ':' . $message : '');
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                return $this->doPoll(null, $payload) ? strlen($payload) : null;
+            case static::TRANSPORT_WEBSOCKET:
+                return $this->write((string) $this->getPayload($payload));
         }
-
-        // wait a little bit of time after this message was sent
-        \usleep((int) $this->options['wait']);
-
-        return $bytes;
     }
 
     /** {@inheritDoc} */
@@ -151,7 +73,18 @@ class Version0X extends AbstractSocketIO
         parent::of($namespace);
 
         $this->send(static::PROTO_CONNECT);
-        if (($packet = $this->drain()) && $packet->proto === static::PROTO_CONNECT) {
+
+        $packet = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $packet = $this->decodePacket($this->stream->getBody());
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $packet = $this->drain();
+                break;
+        }
+
+        if ($packet && $packet->proto === static::PROTO_CONNECT) {
             $this->logger->debug('Successfully connected');
         }
     }
@@ -169,6 +102,59 @@ class Version0X extends AbstractSocketIO
             'version' => 1,
             'transport' => static::TRANSPORT_POLLING,
         ];
+    }
+
+    /** {@inheritDoc} */
+    protected function processData($data)
+    {
+        $result = null;
+        if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::SEPARATOR)) {
+            $packets = explode(static::SEPARATOR, trim($data, static::SEPARATOR));
+        } else {
+            $packets = [$data];
+        }
+        $more = count($packets) > 1;
+        while (count($packets)) {
+            // skip length line if multiple packets found
+            if ($more) {
+                array_shift($packets);
+            }
+            $data = array_shift($packets);
+            $this->logger->debug(sprintf('Processing data: %s', $data));
+            $packet = $this->decodePacket($data);
+            switch ($packet->proto) {
+                case static::PROTO_DISCONNECT:
+                    $this->logger->debug('Connection closed by server');
+                    $this->reset();
+                    throw new RuntimeException('Connection closed by server!');
+                case static::PROTO_HEARTBEAT:
+                    $this->logger->debug('Got HEARTBEAT');
+                    $this->send(static::PROTO_HEARTBEAT);
+                    break;
+                case static::PROTO_NOOP:
+                    break;
+                default:
+                    if (null === $result) {
+                        $result = $packet;
+                    } else {
+                        if (!isset($result->next)) {
+                            $result->next = [];
+                        }
+                        $result->next[] = $packet;
+                    }
+                    break;
+            }
+        }
+
+        return $result;
+    }
+
+    /** {@inheritDoc} */
+    protected function matchEvent($packet, $event)
+    {
+        if (($found = $this->peekPacket($packet, static::PROTO_EVENT)) && $this->matchNamespace($found->nsp) && $found->event === $event) {
+            return $found;
+        }
     }
 
     /**
@@ -193,7 +179,11 @@ class Version0X extends AbstractSocketIO
     protected function decodePacket($data)
     {
         $seq = new SequenceReader($data);
-        $proto = (int) $seq->readUntil(':');
+        $proto = $seq->readUntil(':');
+        if (null === $proto && is_numeric($seq->getData())) {
+            $proto = $seq->getData();
+        }
+        $proto = (int) $proto;
         if ($proto >= static::PROTO_DISCONNECT && $proto <= static::PROTO_NOOP) {
             $ack = $seq->readUntil(':');
             $packet = new stdClass();
@@ -212,6 +202,7 @@ class Version0X extends AbstractSocketIO
                         $data = json_decode($packet->data, true);
                         $packet->event = $data['name'];
                         $packet->args = $data['args'];
+                        $this->replaceBuffers($packet->args);
                         $packet->data = count($packet->args) ? $packet->args[0] : null;
                     }
                     break;
@@ -222,62 +213,51 @@ class Version0X extends AbstractSocketIO
     }
 
     /**
-     * Do the handshake with the socket.io server and populates the `session` value object.
+     * Replace arguments with resource content.
+     *
+     * @param array $array
+     * @return array
      */
-    protected function handshake()
+    protected function replaceResources($array)
     {
-        if (null !== $this->session) {
-            return;
+        if (is_array($array)) {
+            foreach ($array as &$value) {
+                if (is_resource($value)) {
+                    fseek($value, 0);
+                    if ($content = stream_get_contents($value)) {
+                        $value = $content;
+                    } else {
+                        $value = null;
+                    }
+                }
+                if (is_array($value)) {
+                    $value = $this->replaceResources($value);
+                }
+            }
         }
 
-        $this->logger->debug('Starting handshake');
-
-        // set timeout to default
-        $this->setTimeout($this->defaults['timeout']);
-
-        if ($this->doPoll() != 200) {
-            throw new ServerConnectionFailureException('unable to perform handshake');
-        }
-
-        $sess = explode(':', $this->stream->getBody());
-        $handshake = [
-            'sid' => $sess[0],
-            'pingInterval' => $sess[1],
-            'pingTimeout' => $sess[2],
-            'upgrades' => explode(',', $sess[3]),
-        ];
-        $this->storeSession($handshake, $this->stream->getHeaders());
-
-        $this->logger->debug(sprintf('Handshake finished with %s', (string) $this->session));
+        return $array;
     }
 
-    /** Upgrades the transport to WebSocket */
-    protected function upgradeTransport()
+    /**
+     * Replace returned buffer content.
+     *
+     * @param array $array
+     */
+    protected function replaceBuffers(&$array)
     {
-        // check if websocket upgrade is needed
-        if (!in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades) ||
-            !$this->isTransportEnabled(static::TRANSPORT_WEBSOCKET)) {
-            return;
+        if (is_array($array)) {
+            foreach ($array as &$value) {
+                if (is_array($value) && isset($value['type']) && isset($value['data'])) {
+                    if ($value['type'] === 'Buffer') {
+                        $value = implode(array_map('chr', $value['data']));
+                    }
+                }
+                if (is_array($value)) {
+                    $this->replaceBuffers($value);
+                }
+            }
         }
-
-        $this->logger->debug('Starting websocket upgrade');
-
-        // set timeout based on handshake response
-        $this->setTimeout($this->session->getTimeout());
-
-        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101) {
-            $this->setTransport(static::TRANSPORT_WEBSOCKET);
-
-            $this->logger->debug('Websocket upgrade completed');
-        } else {
-            $this->logger->debug('Upgrade failed, skipping websocket');
-        }
-    }
-
-    /** {@inheritDoc} */
-    protected function getTransports()
-    {
-        return [static::TRANSPORT_POLLING, static::TRANSPORT_WEBSOCKET];
     }
 
     protected function buildQueryParameters($transport)
@@ -304,5 +284,59 @@ class Version0X extends AbstractSocketIO
         }
 
         return $uri;
+    }
+
+    protected function doHandshake()
+    {
+        if (null !== $this->session) {
+            return;
+        }
+
+        $this->logger->debug('Starting handshake');
+
+        // set timeout to default
+        $this->setTimeout($this->defaults['timeout']);
+
+        if ($this->doPoll() != 200) {
+            throw new ServerConnectionFailureException('unable to perform handshake');
+        }
+
+        $sess = explode(':', $this->stream->getBody());
+        $handshake = [
+            'sid' => $sess[0],
+            'pingInterval' => $sess[1],
+            'pingTimeout' => $sess[2],
+            'upgrades' => explode(',', $sess[3]),
+        ];
+        $this->storeSession($handshake, $this->stream->getHeaders());
+
+        $this->logger->debug(sprintf('Handshake finished with %s', (string) $this->session));
+    }
+
+    protected function doUpgrade()
+    {
+        $this->logger->debug('Starting websocket upgrade');
+
+        // set timeout based on handshake response
+        $this->setTimeout($this->session->getTimeout());
+
+        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101) {
+            $this->setTransport(static::TRANSPORT_WEBSOCKET);
+
+            $this->logger->debug('Websocket upgrade completed');
+        } else {
+            $this->logger->debug('Upgrade failed, skipping websocket');
+        }
+    }
+
+    protected function doSkipUpgrade()
+    {
+        // send get request to setup connection
+        $this->doPoll();
+    }
+
+    protected function doClose()
+    {
+        $this->send(static::PROTO_DISCONNECT);
     }
 }

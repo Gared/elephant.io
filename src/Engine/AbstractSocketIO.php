@@ -137,7 +137,18 @@ abstract class AbstractSocketIO implements EngineInterface
     /** {@inheritDoc} */
     public function connect()
     {
-        throw new UnsupportedActionException($this, 'connect');
+        if ($this->connected()) {
+            return;
+        }
+
+        $this->setTransport($this->options['transport']);
+        $this->doHandshake();
+        $this->doAfterHandshake();
+        if ($this->isUpgradable()) {
+            $this->doUpgrade();
+        } else {
+            $this->doSkipUpgrade();
+        }
     }
 
     /** {@inheritDoc} */
@@ -148,57 +159,20 @@ abstract class AbstractSocketIO implements EngineInterface
     /** {@inheritDoc} */
     public function close()
     {
-        throw new UnsupportedActionException($this, 'close');
+        if (!$this->connected()) {
+            return;
+        }
+
+        if ($this->session) {
+            $this->doClose();
+        }
+        $this->reset();
     }
 
     /** {@inheritDoc} */
     public function of($namespace)
     {
         $this->namespace = $namespace;
-    }
-
-    /**
-     * Normalize namespace.
-     *
-     * @param string $namespace
-     * @return string
-     */
-    protected function normalizeNamespace($namespace)
-    {
-        if ($namespace && substr($namespace, 0, 1) === '/') {
-            $namespace = substr($namespace, 1);
-        }
-
-        return $namespace;
-    }
-
-    /**
-     * Is namespace match?
-     *
-     * @param string $namespace
-     * @return bool
-     */
-    protected function matchNamespace($namespace)
-    {
-        if ($namespace === $this->namespace || $this->normalizeNamespace($this->namespace) === $namespace) {
-            return true;
-        }
-    }
-
-    /**
-     * Concatenate namespace with data using separator.
-     *
-     * @param string $namespace
-     * @param string $data
-     * @return string
-     */
-    protected function concatNamespace($namespace, $data)
-    {
-        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
-            $namespace .= ',';
-        }
-
-        return $namespace . $data;
     }
 
     /**
@@ -218,46 +192,31 @@ abstract class AbstractSocketIO implements EngineInterface
     /** {@inheritDoc} */
     public function wait($event)
     {
-        throw new UnsupportedActionException($this, 'wait');
+        while (true) {
+            if (($packet = $this->drain()) && $found = $this->matchEvent($packet, $event)) {
+                return $found;
+            }
+        }
     }
 
     /** {@inheritDoc} */
     public function drain($timeout = 0)
     {
-        throw new UnsupportedActionException($this, 'drain');
-    }
-
-    /**
-     * Network safe fread wrapper.
-     *
-     * @param integer $bytes
-     * @param int $timeout
-     * @return bool|string
-     */
-    protected function readBytes($bytes, $timeout = 0)
-    {
-        $data = '';
-        $chunk = null;
-        $start = microtime(true);
-        while ($bytes > 0) {
-            if ($timeout > 0 && microtime(true) - $start >= $timeout) {
+        $data = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                if ($this->doPoll() == 200) {
+                    $data = $this->stream->getBody();
+                }
                 break;
-            }
-            if (!$this->stream->connected()) {
-                throw new RuntimeException('Stream disconnected');
-            }
-            $this->keepAlive();
-            if (false === ($chunk = $this->stream->read($bytes))) {
+            case static::TRANSPORT_WEBSOCKET:
+                $data = $this->read($timeout);
                 break;
-            }
-            $bytes -= \strlen($chunk);
-            $data .= $chunk;
         }
-        if (false === $chunk) {
-            throw new RuntimeException('Could not read from stream');
+        if (null !== $data) {
+            $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
+            return $this->processData($data);
         }
-
-        return $data;
     }
 
     /**
@@ -341,10 +300,66 @@ abstract class AbstractSocketIO implements EngineInterface
         return new Decoder($data);
     }
 
+    /**
+     * Write to the stream.
+     *
+     * @param string $data
+     * @return int
+     */
+    public function write($data)
+    {
+        if (!$this->stream) {
+            throw new RuntimeException('Stream not available!');
+        }
+
+        $bytes = $this->stream->write($data);
+        if ($this->session) {
+            $this->session->resetHeartbeat();
+        }
+
+        // wait a little bit of time after this message was sent
+        \usleep((int) $this->options['wait']);
+
+        return $bytes;
+    }
+
     /** {@inheritDoc} */
     public function getName()
     {
         return 'SocketIO';
+    }
+
+    /**
+     * Network safe fread wrapper.
+     *
+     * @param integer $bytes
+     * @param int $timeout
+     * @return bool|string
+     */
+    protected function readBytes($bytes, $timeout = 0)
+    {
+        $data = '';
+        $chunk = null;
+        $start = microtime(true);
+        while ($bytes > 0) {
+            if ($timeout > 0 && microtime(true) - $start >= $timeout) {
+                break;
+            }
+            if (!$this->stream->connected()) {
+                throw new RuntimeException('Stream disconnected');
+            }
+            $this->keepAlive();
+            if (false === ($chunk = $this->stream->read($bytes))) {
+                break;
+            }
+            $bytes -= \strlen($chunk);
+            $data .= $chunk;
+        }
+        if (false === $chunk) {
+            throw new RuntimeException('Could not read from stream');
+        }
+
+        return $data;
     }
 
     /**
@@ -420,6 +435,106 @@ abstract class AbstractSocketIO implements EngineInterface
         }
 
         return $headers;
+    }
+
+    /**
+     * Normalize namespace.
+     *
+     * @param string $namespace
+     * @return string
+     */
+    protected function normalizeNamespace($namespace)
+    {
+        if ($namespace && substr($namespace, 0, 1) === '/') {
+            $namespace = substr($namespace, 1);
+        }
+
+        return $namespace;
+    }
+
+    /**
+     * Is namespace match?
+     *
+     * @param string $namespace
+     * @return bool
+     */
+    protected function matchNamespace($namespace)
+    {
+        if ($namespace === $this->namespace || $this->normalizeNamespace($this->namespace) === $namespace) {
+            return true;
+        }
+    }
+
+    /**
+     * Concatenate namespace with data using separator.
+     *
+     * @param string $namespace
+     * @param string $data
+     * @return string
+     */
+    protected function concatNamespace($namespace, $data)
+    {
+        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
+            $namespace .= ',';
+        }
+
+        return $namespace . $data;
+    }
+
+    /**
+     * Process received data.
+     *
+     * @param string $data
+     * @return \stdClass
+     */
+    protected function processData($data)
+    {
+    }
+
+    /**
+     * Find matched event from packet.
+     *
+     * @param \stdClass $packet
+     * @param string $event
+     * @return \stdClass
+     */
+    protected function matchEvent($packet, $event)
+    {
+    }
+
+    /**
+     * Flatten packet into array of packet.
+     *
+     * @param \stdClass $packet
+     * @return \stdClass[]
+     */
+    protected function flattenPacket($packet)
+    {
+        $result = [];
+        foreach ((is_array($packet) ? $packet : [$packet]) as $p) {
+            $result[] = $p;
+            if (isset($p->next)) {
+                $result = array_merge($result, $this->flattenPacket($p->next));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Peek packet with matched protocol.
+     *
+     * @param \stdClass $packet
+     * @param int $proto
+     * @return \stdClass
+     */
+    protected function peekPacket($packet, $proto)
+    {
+        foreach ($this->flattenPacket($packet) as $p) {
+            if ($p->proto === $proto) {
+                return $p;
+            }
+        }
     }
 
     /**
@@ -520,7 +635,7 @@ abstract class AbstractSocketIO implements EngineInterface
      */
     protected function getTransports()
     {
-        return [];
+        return [static::TRANSPORT_POLLING, static::TRANSPORT_WEBSOCKET];
     }
 
     /**
@@ -578,5 +693,36 @@ abstract class AbstractSocketIO implements EngineInterface
             $this->session = null;
             $this->cookies = [];
         }
+    }
+
+    /**
+     * Is transport can be upgraded to websocket?
+     *
+     * @return bool
+     */
+    protected function isUpgradable()
+    {
+        return in_array(static::TRANSPORT_WEBSOCKET, $this->session->upgrades) &&
+            $this->isTransportEnabled(static::TRANSPORT_WEBSOCKET) ? true : false;
+    }
+
+    protected function doHandshake()
+    {
+    }
+
+    protected function doAfterHandshake()
+    {
+    }
+
+    protected function doUpgrade()
+    {
+    }
+
+    protected function doSkipUpgrade()
+    {
+    }
+
+    protected function doClose()
+    {
     }
 }
