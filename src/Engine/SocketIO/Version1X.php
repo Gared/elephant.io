@@ -15,12 +15,13 @@ namespace ElephantIO\Engine\SocketIO;
 use InvalidArgumentException;
 use RuntimeException;
 use stdClass;
-use ElephantIO\SequenceReader;
-use ElephantIO\Yeast;
 use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Exception\UnsuccessfulOperationException;
 use ElephantIO\Payload\Encoder;
+use ElephantIO\SequenceReader;
+use ElephantIO\Util;
+use ElephantIO\Yeast;
 
 /**
  * Implements the dialog with Socket.IO version 1.x
@@ -82,17 +83,6 @@ class Version1X extends AbstractSocketIO
     }
 
     /** {@inheritDoc} */
-    public function of($namespace)
-    {
-        $oldns = $this->namespace ? $this->namespace : '/';
-        if ($oldns != $namespace) {
-            parent::of($namespace);
-
-            return $this->switchNamespace($namespace);
-        }
-    }
-
-    /** {@inheritDoc} */
     public function send($code, $message = null)
     {
         if (!$this->connected()) {
@@ -103,6 +93,8 @@ class Version1X extends AbstractSocketIO
         }
 
         $payload = $code . $message;
+        $this->logger->debug(sprintf('Send data: %s', Util::truncate($payload)));
+
         switch ($this->transport) {
             case static::TRANSPORT_POLLING:
                 return $this->doPoll(null, $payload) ? strlen($payload) : null;
@@ -399,55 +391,13 @@ class Version1X extends AbstractSocketIO
      */
     protected function getConfirmedNamespace($packet)
     {
-        if ($packet &&
-            $packet->proto === static::PROTO_MESSAGE &&
-            $packet->type === static::PACKET_CONNECT) {
-            if ($this->options['version'] >= 4) {
-                if (!isset($packet->data['sid'])) {
-                    return isset($packet->data['message']) ? $packet->data['message'] : false;
-                }
+        if ($packet && $packet->proto === static::PROTO_MESSAGE) {
+            if ($packet->type === static::PACKET_CONNECT) {
+                return true;
             }
-
-            return true;
-        }
-    }
-
-    /**
-     * Switch and connect to namespace.
-     *
-     * @param string $namespace
-     * @throws \RuntimeException
-     * @throws \ElephantIO\Exception\UnsuccessfulOperationException
-     * @return \stdClass
-     */
-    protected function switchNamespace($namespace)
-    {
-        if (!$this->session) {
-            throw new RuntimeException('To switch namespace, a session must has been established!');
-        }
-
-        $packet = null;
-        switch ($this->transport) {
-            case static::TRANSPORT_POLLING:
-                $payload = static::PROTO_MESSAGE . static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload());
-                if ($this->doPoll(null, $payload) == 200) {
-                    $this->doPoll();
-                    $packet = $this->decodePacket($this->stream->getBody());
-                }
-                break;
-            case static::TRANSPORT_WEBSOCKET:
-                $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($namespace, $this->getAuthPayload()));
-                $packet = $this->drain();
-                break;
-        }
-
-        if (true === ($result = $this->getConfirmedNamespace($packet))) {
-            return $packet;
-        }
-        if (is_string($result)) {
-            throw new UnsuccessfulOperationException(sprintf('Unable to switch namespace: %s!', $result));
-        } else {
-            throw new UnsuccessfulOperationException('Unable to switch namespace!');
+            if ($packet->type === static::PACKET_ERROR) {
+                return isset($packet->data['message']) ? $packet->data['message'] : false;
+            }
         }
     }
 
@@ -542,7 +492,7 @@ class Version1X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        $this->switchNamespace($this->namespace);
+        $this->doChangeNamespace();
 
         $this->logger->debug('Namespace connect completed');
     }
@@ -571,6 +521,35 @@ class Version1X extends AbstractSocketIO
             $this->logger->debug('Websocket upgrade completed');
         } else {
             $this->logger->debug('Upgrade failed, skipping websocket');
+        }
+    }
+
+    protected function doChangeNamespace()
+    {
+        if (!$this->session) {
+            throw new RuntimeException('To switch namespace, a session must has been established!');
+        }
+
+        $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . $this->concatNamespace($this->namespace, $this->getAuthPayload()));
+
+        $packet = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $this->doPoll();
+                $packet = $this->decodePacket($this->stream->getBody());
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $packet = $this->drain();
+                break;
+        }
+
+        if (true === ($result = $this->getConfirmedNamespace($packet))) {
+            return $packet;
+        }
+        if (is_string($result)) {
+            throw new UnsuccessfulOperationException(sprintf('Unable to switch namespace: %s!', $result));
+        } else {
+            throw new UnsuccessfulOperationException('Unable to switch namespace!');
         }
     }
 

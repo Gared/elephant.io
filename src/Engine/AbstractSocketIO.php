@@ -56,7 +56,7 @@ abstract class AbstractSocketIO implements EngineInterface
     /** @var \ElephantIO\StreamInterface Resource to the connected stream */
     protected $stream;
 
-    /** @var string The namespace of the next message */
+    /** @var string Normalized namespace without path prefix */
     protected $namespace = '';
 
     /** @var string Current socket transport */
@@ -172,7 +172,12 @@ abstract class AbstractSocketIO implements EngineInterface
     /** {@inheritDoc} */
     public function of($namespace)
     {
-        $this->namespace = $namespace;
+        $normalized = $this->normalizeNamespace($namespace);
+        if ($this->namespace !== $normalized) {
+            $this->namespace = $normalized;
+
+            return $this->doChangeNamespace();
+        }
     }
 
     /**
@@ -460,7 +465,7 @@ abstract class AbstractSocketIO implements EngineInterface
      */
     protected function matchNamespace($namespace)
     {
-        if ($namespace === $this->namespace || $this->normalizeNamespace($this->namespace) === $namespace) {
+        if ($namespace === $this->namespace || $this->normalizeNamespace($namespace) === $this->namespace) {
             return true;
         }
     }
@@ -470,12 +475,18 @@ abstract class AbstractSocketIO implements EngineInterface
      *
      * @param string $namespace
      * @param string $data
+     * @param bool $prefix
      * @return string
      */
-    protected function concatNamespace($namespace, $data)
+    protected function concatNamespace($namespace, $data, $prefix = true)
     {
-        if (null !== $namespace && !in_array($namespace, ['', '/'])) {
-            $namespace .= ',';
+        if ($namespace) {
+            if ($prefix) {
+                $namespace = '/' . $namespace;
+            }
+            if ($data) {
+                $namespace .= ',';
+            }
         }
 
         return $namespace . $data;
@@ -719,6 +730,10 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     protected function doSkipUpgrade()
+    {
+    }
+
+    protected function doChangeNamespace()
     {
     }
 

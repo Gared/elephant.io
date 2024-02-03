@@ -13,7 +13,6 @@
 namespace ElephantIO\Stream;
 
 use RuntimeException;
-
 use ElephantIO\Util;
 
 /**

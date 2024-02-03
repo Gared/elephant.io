@@ -19,6 +19,7 @@ use ElephantIO\Engine\AbstractSocketIO;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Payload\Encoder;
 use ElephantIO\SequenceReader;
+use ElephantIO\Util;
 
 /**
  * Implements the dialog with Socket.IO version 0.x
@@ -58,34 +59,14 @@ class Version0X extends AbstractSocketIO
             throw new InvalidArgumentException('Wrong message type to sent to socket');
         }
 
-        $payload = $code . '::' . $this->normalizeNamespace($this->namespace) . ($message ? ':' . $message : '');
+        $payload = $code . '::' . $this->namespace . ($message ? ':' . $message : '');
+        $this->logger->debug(sprintf('Send data: %s', Util::truncate($payload)));
+
         switch ($this->transport) {
             case static::TRANSPORT_POLLING:
                 return $this->doPoll(null, $payload) ? strlen($payload) : null;
             case static::TRANSPORT_WEBSOCKET:
                 return $this->write((string) $this->getPayload($payload));
-        }
-    }
-
-    /** {@inheritDoc} */
-    public function of($namespace)
-    {
-        parent::of($namespace);
-
-        $this->send(static::PROTO_CONNECT);
-
-        $packet = null;
-        switch ($this->transport) {
-            case static::TRANSPORT_POLLING:
-                $packet = $this->decodePacket($this->stream->getBody());
-                break;
-            case static::TRANSPORT_WEBSOCKET:
-                $packet = $this->drain();
-                break;
-        }
-
-        if ($packet && $packet->proto === static::PROTO_CONNECT) {
-            $this->logger->debug('Successfully connected');
         }
     }
 
@@ -333,6 +314,27 @@ class Version0X extends AbstractSocketIO
     {
         // send get request to setup connection
         $this->doPoll();
+    }
+
+    protected function doChangeNamespace()
+    {
+        $this->send(static::PROTO_CONNECT);
+
+        $packet = null;
+        switch ($this->transport) {
+            case static::TRANSPORT_POLLING:
+                $packet = $this->decodePacket($this->stream->getBody());
+                break;
+            case static::TRANSPORT_WEBSOCKET:
+                $packet = $this->drain();
+                break;
+        }
+
+        if ($packet && $packet->proto === static::PROTO_CONNECT) {
+            $this->logger->debug('Successfully connected');
+        }
+
+        return $packet;
     }
 
     protected function doClose()
