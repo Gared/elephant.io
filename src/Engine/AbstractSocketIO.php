@@ -75,7 +75,6 @@ abstract class AbstractSocketIO implements EngineInterface
         }
 
         $this->defaults = array_merge([
-            'debug' => false,
             'wait' => 50, // 50 ms
             'timeout' => \ini_get('default_socket_timeout'),
             'reuse_connection' => true,
