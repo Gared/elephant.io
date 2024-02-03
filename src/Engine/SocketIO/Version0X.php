@@ -50,16 +50,16 @@ class Version0X extends AbstractSocketIO
     }
 
     /** {@inheritDoc} */
-    public function send($code, $message = null)
+    public function send($type, $data = null)
     {
         if (!$this->connected()) {
             return;
         }
-        if (!is_int($code) || $code < static::PROTO_DISCONNECT || $code > static::PROTO_NOOP) {
-            throw new InvalidArgumentException('Wrong message type to sent to socket');
+        if (!is_int($type) || $type < static::PROTO_DISCONNECT || $type > static::PROTO_NOOP) {
+            throw new InvalidArgumentException('Wrong protocol type to sent to server');
         }
 
-        $payload = $code . '::' . $this->namespace . ($message ? ':' . $message : '');
+        $payload = $type . '::' . $this->namespace . ($data ? ':' . $data : '');
         $this->logger->debug(sprintf('Send data: %s', Util::truncate($payload)));
 
         switch ($this->transport) {

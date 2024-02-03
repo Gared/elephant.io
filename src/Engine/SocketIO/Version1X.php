@@ -41,6 +41,14 @@ class Version1X extends AbstractSocketIO
     public const PROTO_UPGRADE = 5;
     public const PROTO_NOOP = 6;
 
+    public const PACKET_CONNECT = 0;
+    public const PACKET_DISCONNECT = 1;
+    public const PACKET_EVENT = 2;
+    public const PACKET_ACK = 3;
+    public const PACKET_ERROR = 4;
+    public const PACKET_BINARY_EVENT = 5;
+    public const PACKET_BINARY_ACK = 6;
+
     public const SEPARATOR = "\x1e";
 
     /**
@@ -83,16 +91,16 @@ class Version1X extends AbstractSocketIO
     }
 
     /** {@inheritDoc} */
-    public function send($code, $message = null)
+    public function send($type, $data = null)
     {
         if (!$this->connected()) {
             return;
         }
-        if (!is_int($code) || static::PROTO_OPEN > $code || static::PROTO_NOOP < $code) {
-            throw new InvalidArgumentException('Wrong message type to sent to socket');
+        if (!is_int($type) || $type < static::PROTO_OPEN || $type > static::PROTO_NOOP) {
+            throw new InvalidArgumentException('Wrong protocol type to sent to server');
         }
 
-        $payload = $code . $message;
+        $payload = $type . $data;
         $this->logger->debug(sprintf('Send data: %s', Util::truncate($payload)));
 
         switch ($this->transport) {

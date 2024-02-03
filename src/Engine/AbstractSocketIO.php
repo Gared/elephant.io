@@ -27,14 +27,6 @@ abstract class AbstractSocketIO implements EngineInterface
 {
     use LoggerAwareTrait;
 
-    public const PACKET_CONNECT = 0;
-    public const PACKET_DISCONNECT = 1;
-    public const PACKET_EVENT = 2;
-    public const PACKET_ACK = 3;
-    public const PACKET_ERROR = 4;
-    public const PACKET_BINARY_EVENT = 5;
-    public const PACKET_BINARY_ACK = 6;
-
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
@@ -181,12 +173,12 @@ abstract class AbstractSocketIO implements EngineInterface
     }
 
     /**
-     * Send message to the socket.
+     * Send protocol and its data to server.
      *
-     * @param integer $code    type of message (one of EngineInterface constants)
-     * @param string  $message Message to send, correctly formatted
+     * @param integer $type Protocol type
+     * @param string  $data Optional data to be sent
      */
-    abstract public function send($code, $message = null);
+    abstract public function send($type, $data = null);
 
     /** {@inheritDoc} */
     public function emit($event, array $args)
