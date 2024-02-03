@@ -33,3 +33,37 @@ php binary-event.php
 
 A log file named `socket.log` will be created upon running the example which
 contains the log when connecting to socket server.
+
+## Run example to target specific socket.io version
+
+Install specific version of `socket.io` package:
+
+```sh
+cd server
+npm install socket.io@0
+```
+
+Change the client version:
+
+```sh
+cd client
+vi common.php
+```
+
+```diff
+diff --git a/example/client/common.php b/example/client/common.php
+index 0bc2023..95af2c4 100644
+--- a/example/client/common.php
++++ b/example/client/common.php
+@@ -26,7 +26,7 @@ require __DIR__ . '/../../vendor/autoload.php';
+  */
+ function client_version($version = null)
+ {
+-    static $client = Client::CLIENT_4X; // default client version
++    static $client = Client::CLIENT_0X; // default client version
+     if (null !== $version) {
+         $client = $version;
+     }
+```
+
+Run the example as shown above.

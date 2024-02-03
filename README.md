@@ -167,10 +167,9 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
-## Documentation
+## Examples
 
-The docs are not written yet, but you should check [the example directory](/example) to get a basic
-knowledge on how this library is meant to work.
+The [the example directory](/example) shows how to get a basic knowledge of library usage.
 
 ## Special Thanks
 
