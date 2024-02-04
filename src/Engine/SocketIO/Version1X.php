@@ -210,6 +210,44 @@ class Version1X extends AbstractSocketIO
         }
     }
 
+    /** {@inheritDoc} */
+    protected function getPacketInfo($packet)
+    {
+        $protocols = [
+            static::PROTO_CLOSE => 'close',
+            static::PROTO_OPEN => 'open',
+            static::PROTO_PING => 'ping',
+            static::PROTO_PONG => 'pong',
+            static::PROTO_MESSAGE => 'message',
+            static::PROTO_UPGRADE => 'upgrade',
+            static::PROTO_NOOP => 'noop',
+        ];
+        $packets = [
+            static::PACKET_CONNECT => 'connect',
+            static::PACKET_DISCONNECT => 'disconnect',
+            static::PACKET_EVENT => 'event',
+            static::PACKET_ACK => 'ack',
+            static::PACKET_ERROR => 'error',
+            static::PACKET_BINARY_EVENT => 'binary-event',
+            static::PACKET_BINARY_ACK => 'binary-ack',
+        ];
+        $info = ['proto' => $protocols[$packet->proto]];
+        foreach (['type', 'nsp', 'event', 'args', 'data'] as $prop) {
+            if (isset($packet->$prop)) {
+                if ('type' === $prop) {
+                    $info[$prop] = $packets[$packet->$prop];
+                } else {
+                    $info[$prop] = $packet->$prop;
+                    if ($prop === 'args') {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $info;
+    }
+
     /**
      * Create payload.
      *
@@ -293,7 +331,6 @@ class Version1X extends AbstractSocketIO
                     $packet->type = (int) $seq->read();
                     if ($packet->type === static::PACKET_BINARY_EVENT) {
                         $packet->binCount = (int) $seq->readUntil('-');
-                        $seq->read();
                     }
                     $packet->nsp = $seq->readUntil(',[{', ['[', '{']);
                     if (null !== ($data = json_decode($seq->getData(), true))) {
@@ -316,6 +353,7 @@ class Version1X extends AbstractSocketIO
                     }
                     break;
             }
+            $this->logger->debug(sprintf('Got packet: %s', Util::truncate($this->stringifyPacket($this->getPacketInfo($packet)))));
 
             return $packet;
         }

@@ -300,7 +300,7 @@ class SocketStream extends AbstractStream
                 break;
             }
             if ($content = ($header || $len === null) ? fgets($this->handle) : fread($this->handle, (int) $len)) {
-                $this->logger->debug(sprintf('Receive: %s', trim($content)));
+                $this->logger->debug(sprintf('Receive: %s', Util::truncate(trim($content))));
                 if ($content === static::EOL && $header && count($this->result['headers'])) {
                     if ($skip_body) {
                         break;

@@ -138,6 +138,33 @@ class Version0X extends AbstractSocketIO
         }
     }
 
+    /** {@inheritDoc} */
+    protected function getPacketInfo($packet)
+    {
+        $protocols = [
+            static::PROTO_DISCONNECT => 'disconnect',
+            static::PROTO_CONNECT => 'connect',
+            static::PROTO_HEARTBEAT => 'heartbeat',
+            static::PROTO_MESSAGE => 'message',
+            static::PROTO_JSON => 'json',
+            static::PROTO_EVENT => 'event',
+            static::PROTO_ACK => 'ack',
+            static::PROTO_ERROR => 'error',
+            static::PROTO_NOOP => 'noop',
+        ];
+        $info = ['proto' => $protocols[$packet->proto]];
+        foreach (['nsp', 'event', 'args', 'data'] as $prop) {
+            if (isset($packet->$prop)) {
+                $info[$prop] = $packet->$prop;
+                if ($prop === 'args') {
+                    break;
+                }
+            }
+        }
+
+        return $info;
+    }
+
     /**
      * Create payload.
      *
@@ -188,6 +215,7 @@ class Version0X extends AbstractSocketIO
                     }
                     break;
             }
+            $this->logger->debug(sprintf('Got packet: %s', Util::truncate($this->stringifyPacket($this->getPacketInfo($packet)))));
 
             return $packet;
         }

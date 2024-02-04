@@ -189,8 +189,15 @@ abstract class AbstractSocketIO implements EngineInterface
     public function wait($event)
     {
         while (true) {
-            if (($packet = $this->drain()) && $found = $this->matchEvent($packet, $event)) {
-                return $found;
+            if ($packet = $this->drain()) {
+                if ($found = $this->matchEvent($packet, $event)) {
+                    return $found;
+                }
+                foreach ($this->flattenPacket($packet) as $p) {
+                    if ($info = $this->getPacketInfo($p)) {
+                        $this->logger->debug(sprintf('Ignoring packet: %s', Util::truncate($this->stringifyPacket($info))));
+                    }
+                }
             }
         }
     }
@@ -537,6 +544,33 @@ abstract class AbstractSocketIO implements EngineInterface
                 return $p;
             }
         }
+    }
+
+    /**
+     * Get packet info.
+     *
+     * @param \stdClass $packet
+     * @return array
+     */
+    protected function getPacketInfo($packet)
+    {
+    }
+
+    /**
+     * Convert packet data to string.
+     *
+     * @param array $packet
+     * @return string
+     */
+    protected function stringifyPacket($packet)
+    {
+        $proto = $packet['proto'];
+        unset($packet['proto']);
+        array_walk($packet, function(&$value, $key) {
+            $value = sprintf('%s:%s', $key, is_array($value) ? json_encode($value) : var_export($value, true));
+        });
+
+        return sprintf('%s{%s}', strtoupper($proto), implode(', ', $packet));
     }
 
     /**
