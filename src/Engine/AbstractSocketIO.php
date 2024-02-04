@@ -195,7 +195,7 @@ abstract class AbstractSocketIO implements EngineInterface
                 }
                 foreach ($this->flattenPacket($packet) as $p) {
                     if ($info = $this->getPacketInfo($p)) {
-                        $this->logger->debug(sprintf('Ignoring packet: %s', Util::truncate($this->stringifyPacket($info))));
+                        $this->logger->info(sprintf('Ignoring packet: %s', Util::truncate($this->stringifyPacket($info))));
                     }
                 }
             }

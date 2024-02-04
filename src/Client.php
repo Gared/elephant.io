@@ -62,9 +62,9 @@ class Client
     public function initialize()
     {
         try {
-            $this->logger->debug('Connecting to server');
+            $this->logger->info('Connecting to server');
             $this->engine->connect();
-            $this->logger->debug('Connected to server');
+            $this->logger->info('Connected to server');
         } catch (SocketException $e) {
             $this->logger->error('Could not connect to server', ['exception' => $e]);
 
@@ -83,7 +83,7 @@ class Client
      */
     public function emit($event, array $args)
     {
-        $this->logger->debug('Sending a new message', ['event' => $event, 'args' => $args]);
+        $this->logger->info('Sending a new message', ['event' => $event, 'args' => $args]);
 
         return $this->engine->emit($event, $args);
     }
@@ -96,7 +96,7 @@ class Client
      */
     public function wait($event)
     {
-        $this->logger->debug('Waiting for event', ['event' => $event]);
+        $this->logger->info('Waiting for event', ['event' => $event]);
 
         return $this->engine->wait($event);
     }
@@ -109,7 +109,7 @@ class Client
      */
     public function read($timeout = 0)
     {
-        $this->logger->debug('Reading a new message from socket');
+        $this->logger->info('Reading a new message from socket');
 
         return $this->engine->read($timeout);
     }
@@ -133,7 +133,7 @@ class Client
      */
     public function of($namespace)
     {
-        $this->logger->debug('Setting namespace', ['namespace' => $namespace]);
+        $this->logger->info('Setting namespace', ['namespace' => $namespace]);
 
         return $this->engine->of($namespace);
     }
@@ -146,7 +146,7 @@ class Client
     public function close()
     {
         if ($this->engine->connected()) {
-            $this->logger->debug('Closing connection to server');
+            $this->logger->info('Closing connection to server');
             $this->engine->close();
         }
 

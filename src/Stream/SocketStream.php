@@ -165,7 +165,7 @@ class SocketStream extends AbstractStream
         $timeout = $this->getTimeout();
         $address = $this->url->getAddress();
 
-        $this->logger->debug(sprintf('Socket connect %s', $address));
+        $this->logger->info(sprintf('Socket connect %s', $address));
         $flags = STREAM_CLIENT_CONNECT;
         if (!isset($this->options['persistent']) || $this->options['persistent']) {
             $flags |= STREAM_CLIENT_PERSISTENT;
@@ -291,7 +291,7 @@ class SocketStream extends AbstractStream
         $header = true;
         $len = null;
         $start = microtime(true);
-        $this->logger->debug('Waiting for response!!!');
+        $this->logger->debug('Waiting for response...');
         while (true) {
             if ($timeout > 0 && microtime(true) - $start >= $timeout) {
                 break;

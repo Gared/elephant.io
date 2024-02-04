@@ -353,7 +353,7 @@ class Version1X extends AbstractSocketIO
                     }
                     break;
             }
-            $this->logger->debug(sprintf('Got packet: %s', Util::truncate($this->stringifyPacket($this->getPacketInfo($packet)))));
+            $this->logger->info(sprintf('Got packet: %s', Util::truncate($this->stringifyPacket($this->getPacketInfo($packet)))));
 
             return $packet;
         }
@@ -480,7 +480,7 @@ class Version1X extends AbstractSocketIO
             return;
         }
 
-        $this->logger->debug('Starting handshake');
+        $this->logger->info('Starting handshake');
 
         // set timeout to default
         $this->setTimeout($this->defaults['timeout']);
@@ -523,7 +523,7 @@ class Version1X extends AbstractSocketIO
         });
         $this->storeSession($handshake, $this->stream->getHeaders());
 
-        $this->logger->debug(sprintf('Handshake finished with %s', (string) $this->session));
+        $this->logger->info(sprintf('Handshake finished with %s', (string) $this->session));
     }
 
     protected function doAfterHandshake()
@@ -533,19 +533,19 @@ class Version1X extends AbstractSocketIO
             return;
         }
 
-        $this->logger->debug('Starting namespace connect');
+        $this->logger->info('Starting namespace connect');
 
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
         $this->doChangeNamespace();
 
-        $this->logger->debug('Namespace connect completed');
+        $this->logger->info('Namespace connect completed');
     }
 
     protected function doUpgrade()
     {
-        $this->logger->debug('Starting websocket upgrade');
+        $this->logger->info('Starting websocket upgrade');
 
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
@@ -564,9 +564,9 @@ class Version1X extends AbstractSocketIO
                 }
             }
     
-            $this->logger->debug('Websocket upgrade completed');
+            $this->logger->info('Websocket upgrade completed');
         } else {
-            $this->logger->debug('Upgrade failed, skipping websocket');
+            $this->logger->info('Upgrade failed, skipping websocket');
         }
     }
 

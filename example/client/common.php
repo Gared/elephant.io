@@ -45,7 +45,7 @@ function setup_logger()
     if (is_readable($logfile)) {
         @unlink($logfile);
     }
-    $logger = new Logger('client');
+    $logger = new Logger('elephant.io');
     $logger->pushHandler(new StreamHandler($logfile, LogLevel::DEBUG));
 
     return $logger;
