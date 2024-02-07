@@ -10,10 +10,11 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Payload;
+namespace ElephantIO\Test\Payload;
 
-use ReflectionProperty;
+use ElephantIO\Payload\Decoder;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 class DecoderTest extends TestCase
 {

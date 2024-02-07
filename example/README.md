@@ -7,6 +7,7 @@ This examples bellow shows typical Elephant.io usage to connect to socket.io ser
 | Description                                 | Server                                                      | Client                                            |
 |---------------------------------------------|-------------------------------------------------------------|---------------------------------------------------|
 | Sending and receiving binary data           | [serve-binary-event.js](./server/serve-binary-event.js)     | [binary-event.php](./client/binary-event.php)     |
+| Error handling                              | [serve-error-handling.js](./server/serve-error-handling.js) | [error-handling.php](./client/error-handling.php) |
 | Authentication using handshake              | [serve-handshake-auth.js](./server/serve-handshake-auth.js) | [handshake-auth.php](./client/handshake-auth.php) |
 | Authentication using `Authorization` header | [serve-header-auth.js](./server/serve-header-auth.js)       | [header-auth.php](./client/header-auth.php)       |
 | Keep alive                                  | [serve-keep-alive.js](./server/serve-keep-alive.js)         | [keep-alive.php](./client/keep-alive.php)         |

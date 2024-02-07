@@ -13,16 +13,16 @@
 namespace ElephantIO\Payload;
 
 use Countable;
-use ElephantIO\AbstractPayload;
+use ElephantIO\Payload;
 
 /**
- * Decode the payload from a received frame
+ * Decode the payload from a received frame.
  *
  * Based on the work of Byeoung Wook (@kbu1564) in #49
  *
  * @author Baptiste Clavié <baptiste@wisembly.com>
  */
-class Decoder extends AbstractPayload implements Countable
+class Decoder extends Payload implements Countable
 {
     private $payload;
     private $data;

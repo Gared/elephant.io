@@ -13,7 +13,7 @@
 namespace ElephantIO\Engine\SocketIO;
 
 /**
- * Implements the dialog with Socket.IO version 4.x
+ * Implements the dialog with socket.io server 4.x.
  *
  * @author Toha <tohenk@yahoo.com>
  */

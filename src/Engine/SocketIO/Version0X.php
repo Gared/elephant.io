@@ -12,24 +12,22 @@
 
 namespace ElephantIO\Engine\SocketIO;
 
-use InvalidArgumentException;
-use RuntimeException;
-use stdClass;
-use ElephantIO\Engine\AbstractSocketIO;
+use ElephantIO\Engine\SocketIO;
 use ElephantIO\Exception\ServerConnectionFailureException;
-use ElephantIO\Payload\Encoder;
 use ElephantIO\SequenceReader;
 use ElephantIO\Util;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
- * Implements the dialog with Socket.IO version 0.x
+ * Implements the dialog with socket.io server 0.x.
  *
  * Based on the work of Baptiste Clavié (@Taluu)
  *
  * @auto ByeoungWook Kim <quddnr145@gmail.com>
  * @link https://tools.ietf.org/html/rfc6455#section-5.2 Websocket's RFC
  */
-class Version0X extends AbstractSocketIO
+class Version0X extends SocketIO
 {
     public const PROTO_DISCONNECT = 0;
     public const PROTO_CONNECT = 1;
@@ -44,33 +42,6 @@ class Version0X extends AbstractSocketIO
     public const SEPARATOR = "\u{fffd}";
 
     /** {@inheritDoc} */
-    public function emit($event, array $args)
-    {
-        $this->send(static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)]));
-    }
-
-    /** {@inheritDoc} */
-    public function send($type, $data = null)
-    {
-        if (!$this->connected()) {
-            return;
-        }
-        if (!is_int($type) || $type < static::PROTO_DISCONNECT || $type > static::PROTO_NOOP) {
-            throw new InvalidArgumentException('Wrong protocol type to sent to server');
-        }
-
-        $payload = $type . '::' . $this->namespace . ($data ? ':' . $data : '');
-        $this->logger->debug(sprintf('Send data: %s', Util::truncate($payload)));
-
-        switch ($this->transport) {
-            case static::TRANSPORT_POLLING:
-                return $this->doPoll(null, $payload) ? strlen($payload) : null;
-            case static::TRANSPORT_WEBSOCKET:
-                return $this->write((string) $this->getPayload($payload));
-        }
-    }
-
-    /** {@inheritDoc} */
     public function getName()
     {
         return 'SocketIO Version 0.X';
@@ -81,13 +52,13 @@ class Version0X extends AbstractSocketIO
     {
         return [
             'version' => 1,
-            'transport' => static::TRANSPORT_POLLING,
         ];
     }
 
     /** {@inheritDoc} */
     protected function processData($data)
     {
+        /** @var \ElephantIO\Engine\Packet $result */
         $result = null;
         if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::SEPARATOR)) {
             $packets = explode(static::SEPARATOR, trim($data, static::SEPARATOR));
@@ -118,10 +89,7 @@ class Version0X extends AbstractSocketIO
                     if (null === $result) {
                         $result = $packet;
                     } else {
-                        if (!isset($result->next)) {
-                            $result->next = [];
-                        }
-                        $result->next[] = $packet;
+                        $result->add($packet);
                     }
                     break;
             }
@@ -133,56 +101,40 @@ class Version0X extends AbstractSocketIO
     /** {@inheritDoc} */
     protected function matchEvent($packet, $event)
     {
-        if (($found = $this->peekPacket($packet, static::PROTO_EVENT)) && $this->matchNamespace($found->nsp) && $found->event === $event) {
+        if (($found = $packet->peek(static::PROTO_EVENT)) && $this->matchNamespace($found->nsp) && $found->event === $event) {
             return $found;
         }
     }
 
     /** {@inheritDoc} */
-    protected function getPacketInfo($packet)
+    protected function createEvent($event, $args)
     {
-        $protocols = [
-            static::PROTO_DISCONNECT => 'disconnect',
-            static::PROTO_CONNECT => 'connect',
-            static::PROTO_HEARTBEAT => 'heartbeat',
-            static::PROTO_MESSAGE => 'message',
-            static::PROTO_JSON => 'json',
-            static::PROTO_EVENT => 'event',
-            static::PROTO_ACK => 'ack',
-            static::PROTO_ERROR => 'error',
-            static::PROTO_NOOP => 'noop',
-        ];
-        $info = ['proto' => $protocols[$packet->proto]];
-        foreach (['nsp', 'event', 'args', 'data'] as $prop) {
-            if (isset($packet->$prop)) {
-                $info[$prop] = $packet->$prop;
-                if ($prop === 'args') {
-                    break;
-                }
-            }
-        }
-
-        return $info;
+        return [static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)])];
     }
 
-    /**
-     * Create payload.
-     *
-     * @param string $data
-     * @param int $encoding
-     * @throws \InvalidArgumentException
-     * @return \ElephantIO\Payload\Encoder
-     */
-    protected function getPayload($data, $encoding = Encoder::OPCODE_TEXT)
+    /** {@inheritDoc} */
+    protected function getPacketMaps()
     {
-        return new Encoder($data, $encoding, true);
+        return [
+            'proto' => [
+                static::PROTO_DISCONNECT => 'disconnect',
+                static::PROTO_CONNECT => 'connect',
+                static::PROTO_HEARTBEAT => 'heartbeat',
+                static::PROTO_MESSAGE => 'message',
+                static::PROTO_JSON => 'json',
+                static::PROTO_EVENT => 'event',
+                static::PROTO_ACK => 'ack',
+                static::PROTO_ERROR => 'error',
+                static::PROTO_NOOP => 'noop',
+            ]
+        ];
     }
 
     /**
      * Decode a packet.
      *
      * @param string $data
-     * @return \stdClass
+     * @return \ElephantIO\Engine\Packet
      */
     protected function decodePacket($data)
     {
@@ -194,9 +146,11 @@ class Version0X extends AbstractSocketIO
         $proto = (int) $proto;
         if ($proto >= static::PROTO_DISCONNECT && $proto <= static::PROTO_NOOP) {
             $ack = $seq->readUntil(':');
-            $packet = new stdClass();
-            $packet->proto = $proto;
-            $packet->nsp = $seq->readUntil(':');
+            if (null === ($nsp = $seq->readUntil(':')) && !$seq->isEof()) {
+                $nsp = $seq->read(null);
+            }
+            $packet = $this->createPacket($proto);
+            $packet->nsp = $nsp;
             $packet->data = !$seq->isEof() ? $seq->getData() : null;
             switch ($packet->proto) {
                 case static::PROTO_MESSAGE:
@@ -215,7 +169,7 @@ class Version0X extends AbstractSocketIO
                     }
                     break;
             }
-            $this->logger->info(sprintf('Got packet: %s', Util::truncate($this->stringifyPacket($this->getPacketInfo($packet)))));
+            $this->logger->info(sprintf('Got packet: %s', Util::truncate((string) $packet)));
 
             return $packet;
         }
@@ -269,14 +223,28 @@ class Version0X extends AbstractSocketIO
         }
     }
 
-    protected function buildQueryParameters($transport)
+    protected function isProtocol($proto)
+    {
+        if ($proto < static::PROTO_DISCONNECT || $proto > static::PROTO_NOOP) {
+            throw new InvalidArgumentException('Wrong protocol type to sent to server');
+        }
+
+        return true;
+    }
+
+    protected function formatProtocol($proto, $data = null)
+    {
+        return $proto . '::' . $this->namespace . ($data ? ':' . $data : '');
+    }
+
+    public function buildQueryParameters($transport)
     {
         $transports = [static::TRANSPORT_POLLING => 'xhr-polling'];
-        $transport = $transport ?? $this->options['transport'];
+        $transport = $transport ?? $this->options->transport;
         if (isset($transports[$transport])) {
             $transport = $transports[$transport];
         }
-        $path = [$this->options['version'], $transport];
+        $path = [$this->options->version, $transport];
         if ($this->session) {
             $path[] = $this->session->id;
         }
@@ -284,7 +252,7 @@ class Version0X extends AbstractSocketIO
         return ['path' => $path];
     }
 
-    protected function buildQuery($query)
+    public function buildQuery($query)
     {
         $url = $this->stream->getUrl()->getParsed();
         $uri = sprintf('/%s/%s', trim($url['path'], '/'), implode('/', $query['path']));
@@ -306,18 +274,20 @@ class Version0X extends AbstractSocketIO
         // set timeout to default
         $this->setTimeout($this->defaults['timeout']);
 
-        if ($this->doPoll() != 200) {
+        /** @var \ElephantIO\Engine\Transport\Polling $transport */
+        $transport = $this->_transport();
+        if (null === ($data = $transport->recv())) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
-        $sess = explode(':', $this->stream->getBody());
+        $sess = explode(':', $data);
         $handshake = [
             'sid' => $sess[0],
-            'pingInterval' => $sess[1],
-            'pingTimeout' => $sess[2],
+            'pingInterval' => (int) $sess[1],
+            'pingTimeout' => (int) $sess[2],
             'upgrades' => explode(',', $sess[3]),
         ];
-        $this->storeSession($handshake, $this->stream->getHeaders());
+        $this->storeSession($handshake, $transport->getHeaders());
 
         $this->logger->info(sprintf('Handshake finished with %s', (string) $this->session));
     }
@@ -329,8 +299,9 @@ class Version0X extends AbstractSocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        if ($this->doPoll(static::TRANSPORT_WEBSOCKET, null, $this->getUpgradeHeaders(), ['skip_body' => true]) == 101) {
+        if (null !== $this->_transport()->recv(0, ['transport' => static::TRANSPORT_WEBSOCKET, 'upgrade' => true])) {
             $this->setTransport(static::TRANSPORT_WEBSOCKET);
+            $this->stream->upgrade();
 
             $this->logger->info('Websocket upgrade completed');
         } else {
@@ -341,23 +312,14 @@ class Version0X extends AbstractSocketIO
     protected function doSkipUpgrade()
     {
         // send get request to setup connection
-        $this->doPoll();
+        $this->_transport()->recv();
     }
 
     protected function doChangeNamespace()
     {
         $this->send(static::PROTO_CONNECT);
 
-        $packet = null;
-        switch ($this->transport) {
-            case static::TRANSPORT_POLLING:
-                $packet = $this->decodePacket($this->stream->getBody());
-                break;
-            case static::TRANSPORT_WEBSOCKET:
-                $packet = $this->drain();
-                break;
-        }
-
+        $packet = $this->drain();
         if ($packet && $packet->proto === static::PROTO_CONNECT) {
             $this->logger->debug('Successfully connected');
         }

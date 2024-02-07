@@ -13,16 +13,16 @@
 namespace ElephantIO;
 
 /**
- * Payload for sending data through the websocket
+ * Payload for sending data through the websocket.
  *
- * Loosely based on the work of the following :
+ * Loosely based on the work of the following:
  *   - Ludovic Barreca (@ludovicbarreca)
  *   - Byeoung Wook (@kbu1564)
  *
  * @link https://tools.ietf.org/html/rfc6455#section-5.2
  * @author Baptiste Clavié <baptiste@wisembly.com>
  */
-abstract class AbstractPayload
+abstract class Payload
 {
     public const OPCODE_CONTINUE = 0x0;
     public const OPCODE_TEXT = 0x1;
@@ -67,7 +67,7 @@ abstract class AbstractPayload
      * Set maximum payload length.
      *
      * @param int $length
-     * @return \ElephantIO\AbstractPayload
+     * @return \ElephantIO\Payload
      */
     public function setMaxPayload($length)
     {

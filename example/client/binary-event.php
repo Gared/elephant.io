@@ -34,5 +34,5 @@ foreach ([
         truncate_data($retval->data);
         echo sprintf("Got a reply: %s\n", json_encode($retval->data));
     }
-    $client->close();
+    $client->disconnect();
 }

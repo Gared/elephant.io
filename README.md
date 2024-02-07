@@ -6,15 +6,15 @@
 [![License](https://poser.pugx.org/elephantio/elephant.io/license.svg)](https://packagist.org/packages/elephantio/elephant.io)
 
 ```
-        ___     _,.--.,_         Elephant.io is a rough websocket client
-      .-~   ~--"~-.   ._ "-.     written in PHP. Its goal is to ease the
-     /      ./_    Y    "-. \    communications between your PHP Application and
-    Y       :~     !         Y   a real-time server.
-    lq p    |     /         .|
- _   \. .-, l    /          |j   Requires PHP 7.2 and openssl, licensed under
-()\___) |/   \_/";          !    the MIT License.
+        ___     _,.--.,_         Elephant.io is a socket.io client written in PHP.
+      .-~   ~--"~-.   ._ "-.     Its goal is to ease the communications between your
+     /      ./_    Y    "-. \    PHP application and a socket.io server.
+    Y       :~     !         Y
+    lq p    |     /         .|   Requires PHP 7.2 and openssl, licensed under
+ _   \. .-, l    /          |j   the MIT License
+()\___) |/   \_/";          !
  \._____.-~\  .  ~\.      ./
-            Y_ Y_. "vr"~  T      Built-in Engines:
+            Y_ Y_. "vr"~  T      Built-in engines:
             (  (    |L    j      - Socket.io 4.x, 3.x, 2.x, 1.x
             [nn[nn..][nn..]      - Socket.io 0.x (courtesy of @kbu1564)
           ~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,7 @@ We are suggesting you to use composer, using `composer require elephantio/elepha
 
 ## Usage
 
-To use Elephant.io to communicate with socket server is described as follows.
+To use Elephant.io to communicate with socket.io server is described as follows.
 
 ```php
 <?php
@@ -40,8 +40,8 @@ $url = 'http://localhost:8080';
 $options = ['client' => Client::CLIENT_4X];
 
 $client = Client::create($url, $options);
-$client->initialize();
-$client->of('/');
+$client->connect();
+$client->of('/'); // can be omitted if connecting to default namespace
 
 // emit an event to the server
 $data = ['username' => 'my-user'];
@@ -51,7 +51,7 @@ $client->emit('get-user-info', $data);
 // beware when waiting for response from server, the script may be killed if
 // PHP max_execution_time is reached
 if ($packet = $client->wait('user-info')) {
-    // an event has been received, the result will be a stdClass
+    // an event has been received, the result will be a \ElephantIO\Engine\Packet class
     // data property contains the first argument
     // args property contains array of arguments, [$data, ...]
     $data = $packet->data;
@@ -59,6 +59,9 @@ if ($packet = $client->wait('user-info')) {
     // access data
     $email = $data['email'];
 }
+
+// end session
+$client->disconnect();
 ```
 
 ## Options
@@ -108,7 +111,7 @@ authentication token, or providing stream context.
   ```
 
 * `context`
-  
+
   A [stream context](https://www.php.net/manual/en/function.stream-context-create.php) options for the socket stream.
 
   ```php
@@ -167,6 +170,50 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
+## Methods
+
+Elephant.io client (`ElephantIO\Client`) provides the following api methods:
+
+* `initialize()` _deprecated_
+
+   An alias to `connect()`.
+
+* `connect()`
+
+  Connect to socket.io server. In case of server connection is unsuccessful, an exception
+  `ElephantIO\Exception\SocketException` will be thrown. It also connects to default
+  `/` namespace and will trigger `ElephantIO\Exception\UnsuccessfulOperationException`
+  upon unsuccessful attempts.
+
+* `close()` _deprecated_
+
+   An alias to `disconnect()`.
+
+* `disconnect()`
+
+  Disconnect from server and free some resources.
+
+* `of($namespace)`
+
+  Connect to a namespace, see `connect()` above for possible errors.
+
+* `emit($event, array $args)`
+
+  Send an event to server.
+
+* `wait($event, $timeout = 0)`
+
+  Wait an event to be received from server.
+
+* `drain($timeout = 0)`
+
+  Drain and get returned packet from server, used to receive data from server
+  when we are not expecting an event to arrive.
+
+* `getEngine()`
+
+  Get the underlying socket engine.
+
 ## Debugging
 
 It's sometime necessary to get the verbose output for debugging. Elephant.io utilizes `Psr\Log\LoggerInterface`
@@ -175,10 +222,12 @@ for this purpose.
 ```php
 <?php
 
+use ElephantIO\Client;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Psr\Log\LogLevel;
 
+$url = 'http://localhost:8080';
 $logfile = __DIR__ . '/socket.log';
 
 $logger = new Logger('elephant.io');
@@ -187,117 +236,117 @@ $logger->pushHandler(new StreamHandler($logfile, LogLevel::DEBUG)); // set LogLe
 $options = ['logger' => $logger];
 
 $client = Client::create($url, $options);
-...
 ```
 
 Here is an example of debug logging:
 
 ```log
-[2024-02-04T16:11:56.015041+07:00] elephant.io.INFO: Connecting to server [] []
-[2024-02-04T16:11:56.016737+07:00] elephant.io.INFO: Starting handshake [] []
-[2024-02-04T16:11:56.017782+07:00] elephant.io.INFO: Socket connect tcp://localhost:14000 [] []
-[2024-02-04T16:11:56.022344+07:00] elephant.io.DEBUG: Write data: GET /socket.io/?EIO=4&transport=polling&t=OrpOtjW HTTP/1.1 [] []
-[2024-02-04T16:11:56.022399+07:00] elephant.io.DEBUG: Write data: Host: localhost:14000 [] []
-[2024-02-04T16:11:56.022425+07:00] elephant.io.DEBUG: Write data: Connection: keep-alive [] []
-[2024-02-04T16:11:56.022443+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.022461+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.022480+07:00] elephant.io.DEBUG: Waiting for response... [] []
-[2024-02-04T16:11:56.028340+07:00] elephant.io.DEBUG: Receive: HTTP/1.1 200 OK [] []
-[2024-02-04T16:11:56.044420+07:00] elephant.io.DEBUG: Receive: Content-Type: text/plain; charset=UTF-8 [] []
-[2024-02-04T16:11:56.046469+07:00] elephant.io.DEBUG: Receive: Content-Length: 118 [] []
-[2024-02-04T16:11:56.062623+07:00] elephant.io.DEBUG: Receive: cache-control: no-store [] []
-[2024-02-04T16:11:56.078634+07:00] elephant.io.DEBUG: Receive: Date: Sun, 04 Feb 2024 09:11:56 GMT [] []
-[2024-02-04T16:11:56.094206+07:00] elephant.io.DEBUG: Receive: Connection: keep-alive [] []
-[2024-02-04T16:11:56.109975+07:00] elephant.io.DEBUG: Receive: Keep-Alive: timeout=5 [] []
-[2024-02-04T16:11:56.125569+07:00] elephant.io.DEBUG: Receive:  [] []
-[2024-02-04T16:11:56.141312+07:00] elephant.io.DEBUG: Receive: 0{"sid":"bFjtgbDtgyXss-eMAABm","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000,"ma... 18 more [] []
-[2024-02-04T16:11:56.143079+07:00] elephant.io.INFO: Got packet: OPEN{data:{"sid":"bFjtgbDtgyXss-eMAABm","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":... 28 more [] []
-[2024-02-04T16:11:56.144217+07:00] elephant.io.INFO: Handshake finished with {"id":"bFjtgbDtgyXss-eMAABm","heartbeat":1707037916.144179,"timeouts":{"timeout":20,"interval":25},"upgrades":["websocket"],"maxPayload":1000000} [] []
-[2024-02-04T16:11:56.144329+07:00] elephant.io.INFO: Starting namespace connect [] []
-[2024-02-04T16:11:56.144484+07:00] elephant.io.DEBUG: Send data: 40 [] []
-[2024-02-04T16:11:56.145057+07:00] elephant.io.DEBUG: Write data: POST /socket.io/?EIO=4&transport=polling&t=OrpOtjW.0&sid=bFjtgbDtgyXss-eMAABm HTTP/1.1 [] []
-[2024-02-04T16:11:56.145156+07:00] elephant.io.DEBUG: Write data: Host: localhost:14000 [] []
-[2024-02-04T16:11:56.145213+07:00] elephant.io.DEBUG: Write data: Content-Type: text/plain; charset=UTF-8 [] []
-[2024-02-04T16:11:56.145264+07:00] elephant.io.DEBUG: Write data: Content-Length: 2 [] []
-[2024-02-04T16:11:56.145311+07:00] elephant.io.DEBUG: Write data: Connection: keep-alive [] []
-[2024-02-04T16:11:56.145360+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.145409+07:00] elephant.io.DEBUG: Write data: 40 [] []
-[2024-02-04T16:11:56.145515+07:00] elephant.io.DEBUG: Waiting for response... [] []
-[2024-02-04T16:11:56.156923+07:00] elephant.io.DEBUG: Receive: HTTP/1.1 200 OK [] []
-[2024-02-04T16:11:56.172603+07:00] elephant.io.DEBUG: Receive: Content-Type: text/html [] []
-[2024-02-04T16:11:56.188045+07:00] elephant.io.DEBUG: Receive: Content-Length: 2 [] []
-[2024-02-04T16:11:56.203408+07:00] elephant.io.DEBUG: Receive: cache-control: no-store [] []
-[2024-02-04T16:11:56.219137+07:00] elephant.io.DEBUG: Receive: Date: Sun, 04 Feb 2024 09:11:56 GMT [] []
-[2024-02-04T16:11:56.234896+07:00] elephant.io.DEBUG: Receive: Connection: keep-alive [] []
-[2024-02-04T16:11:56.250487+07:00] elephant.io.DEBUG: Receive: Keep-Alive: timeout=5 [] []
-[2024-02-04T16:11:56.266399+07:00] elephant.io.DEBUG: Receive:  [] []
-[2024-02-04T16:11:56.282791+07:00] elephant.io.DEBUG: Receive: ok [] []
-[2024-02-04T16:11:56.284456+07:00] elephant.io.DEBUG: Write data: GET /socket.io/?EIO=4&transport=polling&t=OrpOtjW.1&sid=bFjtgbDtgyXss-eMAABm HTTP/1.1 [] []
-[2024-02-04T16:11:56.284627+07:00] elephant.io.DEBUG: Write data: Host: localhost:14000 [] []
-[2024-02-04T16:11:56.284818+07:00] elephant.io.DEBUG: Write data: Connection: keep-alive [] []
-[2024-02-04T16:11:56.285028+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.285236+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.285324+07:00] elephant.io.DEBUG: Waiting for response... [] []
-[2024-02-04T16:11:56.285420+07:00] elephant.io.DEBUG: Receive: HTTP/1.1 200 OK [] []
-[2024-02-04T16:11:56.301289+07:00] elephant.io.DEBUG: Receive: Content-Type: text/plain; charset=UTF-8 [] []
-[2024-02-04T16:11:56.316162+07:00] elephant.io.DEBUG: Receive: Content-Length: 32 [] []
-[2024-02-04T16:11:56.317317+07:00] elephant.io.DEBUG: Receive: cache-control: no-store [] []
-[2024-02-04T16:11:56.334009+07:00] elephant.io.DEBUG: Receive: Date: Sun, 04 Feb 2024 09:11:56 GMT [] []
-[2024-02-04T16:11:56.336420+07:00] elephant.io.DEBUG: Receive: Connection: keep-alive [] []
-[2024-02-04T16:11:56.352912+07:00] elephant.io.DEBUG: Receive: Keep-Alive: timeout=5 [] []
-[2024-02-04T16:11:56.368733+07:00] elephant.io.DEBUG: Receive:  [] []
-[2024-02-04T16:11:56.384437+07:00] elephant.io.DEBUG: Receive: 40{"sid":"-nfM6ff5hmd0EVREAABn"} [] []
-[2024-02-04T16:11:56.384800+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'connect', nsp:'', data:{"sid":"-nfM6ff5hmd0EVREAABn"}} [] []
-[2024-02-04T16:11:56.384883+07:00] elephant.io.INFO: Namespace connect completed [] []
-[2024-02-04T16:11:56.384955+07:00] elephant.io.INFO: Starting websocket upgrade [] []
-[2024-02-04T16:11:56.385362+07:00] elephant.io.DEBUG: Write data: GET /socket.io/?EIO=4&transport=websocket&t=OrpOtjW.2&sid=bFjtgbDtgyXss-eMAABm HTTP/1.1 [] []
-[2024-02-04T16:11:56.385455+07:00] elephant.io.DEBUG: Write data: Host: localhost:14000 [] []
-[2024-02-04T16:11:56.385514+07:00] elephant.io.DEBUG: Write data: Connection: Upgrade [] []
-[2024-02-04T16:11:56.385568+07:00] elephant.io.DEBUG: Write data: Upgrade: websocket [] []
-[2024-02-04T16:11:56.385619+07:00] elephant.io.DEBUG: Write data: Sec-WebSocket-Key: mz0qbktAwmPoX0RLSWqDsw== [] []
-[2024-02-04T16:11:56.385671+07:00] elephant.io.DEBUG: Write data: Sec-WebSocket-Version: 13 [] []
-[2024-02-04T16:11:56.385724+07:00] elephant.io.DEBUG: Write data: Origin: * [] []
-[2024-02-04T16:11:56.385776+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.385829+07:00] elephant.io.DEBUG: Write data:  [] []
-[2024-02-04T16:11:56.385881+07:00] elephant.io.DEBUG: Waiting for response... [] []
-[2024-02-04T16:11:56.399853+07:00] elephant.io.DEBUG: Receive: HTTP/1.1 101 Switching Protocols [] []
-[2024-02-04T16:11:56.415586+07:00] elephant.io.DEBUG: Receive: Upgrade: websocket [] []
-[2024-02-04T16:11:56.430881+07:00] elephant.io.DEBUG: Receive: Connection: Upgrade [] []
-[2024-02-04T16:11:56.446892+07:00] elephant.io.DEBUG: Receive: Sec-WebSocket-Accept: aYEbOSb/U7+2ejmUpTcKA00nde0= [] []
-[2024-02-04T16:11:56.461933+07:00] elephant.io.DEBUG: Receive:  [] []
-[2024-02-04T16:11:56.462234+07:00] elephant.io.DEBUG: Send data: 5 [] []
-[2024-02-04T16:11:56.464335+07:00] elephant.io.DEBUG: Write data: �����`� [] []
-[2024-02-04T16:11:56.478166+07:00] elephant.io.INFO: Websocket upgrade completed [] []
-[2024-02-04T16:11:56.478427+07:00] elephant.io.INFO: Connected to server [] []
-[2024-02-04T16:11:56.478620+07:00] elephant.io.INFO: Setting namespace {"namespace":"/keep-alive"} []
-[2024-02-04T16:11:56.478760+07:00] elephant.io.DEBUG: Send data: 40/keep-alive [] []
-[2024-02-04T16:11:56.479055+07:00] elephant.io.DEBUG: Write data: ���k��&D��s�z�� [] []
-[2024-02-04T16:11:56.493826+07:00] elephant.io.DEBUG: Receiving data: �,40/keep-alive,{"sid":"l5Lf1a5zRsWCvnRlAABo"} [] []
-[2024-02-04T16:11:56.495533+07:00] elephant.io.DEBUG: Got data: 40/keep-alive,{"sid":"l5Lf1a5zRsWCvnRlAABo"} [] []
-[2024-02-04T16:11:56.495842+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'connect', nsp:'/keep-alive', data:{"sid":"l5Lf1a5zRsWCvnRlAABo"}} [] []
-[2024-02-04T16:11:56.496005+07:00] elephant.io.INFO: Sending a new message {"event":"message","args":{"message":"A message"}} []
-[2024-02-04T16:11:56.496151+07:00] elephant.io.DEBUG: Send data: 42/keep-alive,["message",{"message":"A message"}] [] []
-[2024-02-04T16:11:56.496527+07:00] elephant.io.DEBUG: Write data: ��>�� 0͗[g��_n��[.��Sg��_e��y��[q��Yg��C[q��Yg��c [] []
-[2024-02-04T16:11:56.508711+07:00] elephant.io.INFO: Waiting for event {"event":"message"} []
-[2024-02-04T16:11:56.509108+07:00] elephant.io.DEBUG: Receiving data: �*42/keep-alive,["message",{"success":true}] [] []
-[2024-02-04T16:11:56.509351+07:00] elephant.io.DEBUG: Got data: 42/keep-alive,["message",{"success":true}] [] []
-[2024-02-04T16:11:56.509911+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'event', nsp:'/keep-alive', event:'message', args:[{"success":true}]} [] []
-[2024-02-04T16:12:21.032799+07:00] elephant.io.DEBUG: Receiving data: �2 [] []
-[2024-02-04T16:12:21.032924+07:00] elephant.io.DEBUG: Got data: 2 [] []
-[2024-02-04T16:12:21.032967+07:00] elephant.io.INFO: Got packet: PING{} [] []
-[2024-02-04T16:12:21.032991+07:00] elephant.io.DEBUG: Got PING, sending PONG [] []
-[2024-02-04T16:12:21.033019+07:00] elephant.io.DEBUG: Send data: 3 [] []
-[2024-02-04T16:12:21.033144+07:00] elephant.io.DEBUG: Write data: ��ko�- [] []
-[2024-02-04T16:12:27.042586+07:00] elephant.io.INFO: Sending a new message {"event":"message","args":{"message":"Last message"}} []
-[2024-02-04T16:12:27.042744+07:00] elephant.io.DEBUG: Send data: 42/keep-alive,["message",{"message":"Last message"}] [] []
-[2024-02-04T16:12:27.042930+07:00] elephant.io.DEBUG: Write data: ���}|7�OS\��A�Q'�D��^Z�V�^ �1D�]R�P�_j [] []
-[2024-02-04T16:12:27.056610+07:00] elephant.io.INFO: Waiting for event {"event":"message"} []
-[2024-02-04T16:12:27.056777+07:00] elephant.io.DEBUG: Receiving data: �*42/keep-alive,["message",{"success":true}] [] []
-[2024-02-04T16:12:27.056958+07:00] elephant.io.DEBUG: Got data: 42/keep-alive,["message",{"success":true}] [] []
-[2024-02-04T16:12:27.057069+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'event', nsp:'/keep-alive', event:'message', args:[{"success":true}]} [] []
-[2024-02-04T16:12:27.057449+07:00] elephant.io.INFO: Closing connection to server [] []
-[2024-02-04T16:12:27.057525+07:00] elephant.io.DEBUG: Send data: 1 [] []
-[2024-02-04T16:12:27.057686+07:00] elephant.io.DEBUG: Write data: ��%E�s [] []
+[2024-02-07T19:15:36.334185+07:00] elephant.io.INFO: Connecting to server [] []
+[2024-02-07T19:15:36.339640+07:00] elephant.io.INFO: Starting handshake [] []
+[2024-02-07T19:15:36.342198+07:00] elephant.io.INFO: Stream connect: tcp://localhost:14000 [] []
+[2024-02-07T19:15:36.357717+07:00] elephant.io.DEBUG: Stream write: GET /socket.io/?EIO=4&transport=polling&t=Os3VhP0 HTTP/1.1 [] []
+[2024-02-07T19:15:36.357935+07:00] elephant.io.DEBUG: Stream write: Host: localhost:14000 [] []
+[2024-02-07T19:15:36.358062+07:00] elephant.io.DEBUG: Stream write: Connection: keep-alive [] []
+[2024-02-07T19:15:36.358157+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.358250+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.370573+07:00] elephant.io.DEBUG: Stream receive: HTTP/1.1 200 OK  [] []
+[2024-02-07T19:15:36.386194+07:00] elephant.io.DEBUG: Stream receive: Content-Type: text/plain; charset=UTF-8  [] []
+[2024-02-07T19:15:36.401799+07:00] elephant.io.DEBUG: Stream receive: Content-Length: 118  [] []
+[2024-02-07T19:15:36.417080+07:00] elephant.io.DEBUG: Stream receive: cache-control: no-store  [] []
+[2024-02-07T19:15:36.433208+07:00] elephant.io.DEBUG: Stream receive: Date: Wed, 07 Feb 2024 12:15:36 GMT  [] []
+[2024-02-07T19:15:36.448896+07:00] elephant.io.DEBUG: Stream receive: Connection: keep-alive  [] []
+[2024-02-07T19:15:36.464189+07:00] elephant.io.DEBUG: Stream receive: Keep-Alive: timeout=5  [] []
+[2024-02-07T19:15:36.479713+07:00] elephant.io.DEBUG: Stream receive:   [] []
+[2024-02-07T19:15:36.495378+07:00] elephant.io.DEBUG: Stream receive: 0{"sid":"JnwzDxAn3tKdHwa2AAAD","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000,"ma... 18 more [] []
+[2024-02-07T19:15:36.497365+07:00] elephant.io.INFO: Got packet: OPEN{data:{"sid":"JnwzDxAn3tKdHwa2AAAD","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":... 28 more [] []
+[2024-02-07T19:15:36.498271+07:00] elephant.io.INFO: Handshake finished with SESSION{id:'JnwzDxAn3tKdHwa2AAAD',upgrades:["websocket"],timeouts:{"interval":25,"timeout":20},max_payload:1000000} [] []
+[2024-02-07T19:15:36.498378+07:00] elephant.io.INFO: Starting namespace connect [] []
+[2024-02-07T19:15:36.498473+07:00] elephant.io.DEBUG: Send data: 40 [] []
+[2024-02-07T19:15:36.498862+07:00] elephant.io.DEBUG: Stream write: POST /socket.io/?EIO=4&transport=polling&t=Os3VhP0.0&sid=JnwzDxAn3tKdHwa2AAAD HTTP/1.1 [] []
+[2024-02-07T19:15:36.498981+07:00] elephant.io.DEBUG: Stream write: Host: localhost:14000 [] []
+[2024-02-07T19:15:36.499058+07:00] elephant.io.DEBUG: Stream write: Content-Type: text/plain; charset=UTF-8 [] []
+[2024-02-07T19:15:36.499136+07:00] elephant.io.DEBUG: Stream write: Content-Length: 2 [] []
+[2024-02-07T19:15:36.499218+07:00] elephant.io.DEBUG: Stream write: Connection: keep-alive [] []
+[2024-02-07T19:15:36.499297+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.499376+07:00] elephant.io.DEBUG: Stream write: 40 [] []
+[2024-02-07T19:15:36.511209+07:00] elephant.io.DEBUG: Stream receive: HTTP/1.1 200 OK  [] []
+[2024-02-07T19:15:36.526684+07:00] elephant.io.DEBUG: Stream receive: Content-Type: text/html  [] []
+[2024-02-07T19:15:36.543098+07:00] elephant.io.DEBUG: Stream receive: Content-Length: 2  [] []
+[2024-02-07T19:15:36.559652+07:00] elephant.io.DEBUG: Stream receive: cache-control: no-store  [] []
+[2024-02-07T19:15:36.575655+07:00] elephant.io.DEBUG: Stream receive: Date: Wed, 07 Feb 2024 12:15:36 GMT  [] []
+[2024-02-07T19:15:36.591805+07:00] elephant.io.DEBUG: Stream receive: Connection: keep-alive  [] []
+[2024-02-07T19:15:36.608440+07:00] elephant.io.DEBUG: Stream receive: Keep-Alive: timeout=5  [] []
+[2024-02-07T19:15:36.624682+07:00] elephant.io.DEBUG: Stream receive:   [] []
+[2024-02-07T19:15:36.639941+07:00] elephant.io.DEBUG: Stream receive: ok [] []
+[2024-02-07T19:15:36.640613+07:00] elephant.io.DEBUG: Stream write: GET /socket.io/?EIO=4&transport=polling&t=Os3VhP0.1&sid=JnwzDxAn3tKdHwa2AAAD HTTP/1.1 [] []
+[2024-02-07T19:15:36.640741+07:00] elephant.io.DEBUG: Stream write: Host: localhost:14000 [] []
+[2024-02-07T19:15:36.640822+07:00] elephant.io.DEBUG: Stream write: Connection: keep-alive [] []
+[2024-02-07T19:15:36.641043+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.641146+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.655816+07:00] elephant.io.DEBUG: Stream receive: HTTP/1.1 200 OK  [] []
+[2024-02-07T19:15:36.671726+07:00] elephant.io.DEBUG: Stream receive: Content-Type: text/plain; charset=UTF-8  [] []
+[2024-02-07T19:15:36.686998+07:00] elephant.io.DEBUG: Stream receive: Content-Length: 32  [] []
+[2024-02-07T19:15:36.702384+07:00] elephant.io.DEBUG: Stream receive: cache-control: no-store  [] []
+[2024-02-07T19:15:36.718665+07:00] elephant.io.DEBUG: Stream receive: Date: Wed, 07 Feb 2024 12:15:36 GMT  [] []
+[2024-02-07T19:15:36.733934+07:00] elephant.io.DEBUG: Stream receive: Connection: keep-alive  [] []
+[2024-02-07T19:15:36.749578+07:00] elephant.io.DEBUG: Stream receive: Keep-Alive: timeout=5  [] []
+[2024-02-07T19:15:36.765304+07:00] elephant.io.DEBUG: Stream receive:   [] []
+[2024-02-07T19:15:36.780796+07:00] elephant.io.DEBUG: Stream receive: 40{"sid":"JcKcO8ySN_Pt7W3nAAAE"} [] []
+[2024-02-07T19:15:36.781013+07:00] elephant.io.DEBUG: Got data: 40{"sid":"JcKcO8ySN_Pt7W3nAAAE"} [] []
+[2024-02-07T19:15:36.781207+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'connect',nsp:'',data:{"sid":"JcKcO8ySN_Pt7W3nAAAE"}} [] []
+[2024-02-07T19:15:36.781283+07:00] elephant.io.INFO: Namespace connect completed [] []
+[2024-02-07T19:15:36.781388+07:00] elephant.io.INFO: Starting websocket upgrade [] []
+[2024-02-07T19:15:36.782101+07:00] elephant.io.DEBUG: Stream write: GET /socket.io/?EIO=4&transport=websocket&t=Os3VhP0.2&sid=JnwzDxAn3tKdHwa2AAAD HTTP/1.1 [] []
+[2024-02-07T19:15:36.782229+07:00] elephant.io.DEBUG: Stream write: Host: localhost:14000 [] []
+[2024-02-07T19:15:36.782308+07:00] elephant.io.DEBUG: Stream write: Upgrade: websocket [] []
+[2024-02-07T19:15:36.782379+07:00] elephant.io.DEBUG: Stream write: Connection: Upgrade [] []
+[2024-02-07T19:15:36.782456+07:00] elephant.io.DEBUG: Stream write: Sec-WebSocket-Key: uActUggIt5OnwQWOaqCTJw== [] []
+[2024-02-07T19:15:36.782533+07:00] elephant.io.DEBUG: Stream write: Sec-WebSocket-Version: 13 [] []
+[2024-02-07T19:15:36.782609+07:00] elephant.io.DEBUG: Stream write: Origin: * [] []
+[2024-02-07T19:15:36.782683+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.782760+07:00] elephant.io.DEBUG: Stream write:  [] []
+[2024-02-07T19:15:36.796297+07:00] elephant.io.DEBUG: Stream receive: HTTP/1.1 101 Switching Protocols  [] []
+[2024-02-07T19:15:36.811668+07:00] elephant.io.DEBUG: Stream receive: Upgrade: websocket  [] []
+[2024-02-07T19:15:36.813973+07:00] elephant.io.DEBUG: Stream receive: Connection: Upgrade  [] []
+[2024-02-07T19:15:36.814801+07:00] elephant.io.DEBUG: Stream receive: Sec-WebSocket-Accept: WV0ttuG/wPXtIQ8Z3LMW/OilwsM=  [] []
+[2024-02-07T19:15:36.831356+07:00] elephant.io.DEBUG: Stream receive:   [] []
+[2024-02-07T19:15:36.831651+07:00] elephant.io.DEBUG: Send data: 5 [] []
+[2024-02-07T19:15:36.836271+07:00] elephant.io.DEBUG: Stream write: ��[��# [] []
+[2024-02-07T19:15:36.847342+07:00] elephant.io.INFO: Websocket upgrade completed [] []
+[2024-02-07T19:15:36.847600+07:00] elephant.io.INFO: Connected to server [] []
+[2024-02-07T19:15:36.847734+07:00] elephant.io.INFO: Setting namespace {"namespace":"/keep-alive"} []
+[2024-02-07T19:15:36.847861+07:00] elephant.io.DEBUG: Send data: 40/keep-alive [] []
+[2024-02-07T19:15:36.848210+07:00] elephant.io.DEBUG: Stream write: ���U�x�e��0�U�9�� [] []
+[2024-02-07T19:15:36.865233+07:00] elephant.io.DEBUG: Stream receive: �, [] []
+[2024-02-07T19:15:36.865549+07:00] elephant.io.DEBUG: Stream receive: 40/keep-alive,{"sid":"CQ39APtaje18wJVrAAAF"} [] []
+[2024-02-07T19:15:36.866633+07:00] elephant.io.DEBUG: Got data: 40/keep-alive,{"sid":"CQ39APtaje18wJVrAAAF"} [] []
+[2024-02-07T19:15:36.866831+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'connect',nsp:'/keep-alive',data:{"sid":"CQ39APtaje18wJVrAAAF"}} [] []
+[2024-02-07T19:15:36.866936+07:00] elephant.io.INFO: Emitting a new event {"event":"message","args":{"message":"A message"}} []
+[2024-02-07T19:15:36.867203+07:00] elephant.io.DEBUG: Send data: 42/keep-alive,["message",{"message":"A message"}] [] []
+[2024-02-07T19:15:36.867640+07:00] elephant.io.DEBUG: Stream write: ��װ�wセ���Z������U������U�˶����նM������ն � [] []
+[2024-02-07T19:15:36.873410+07:00] elephant.io.INFO: Waiting for event {"event":"message"} []
+[2024-02-07T19:15:36.873747+07:00] elephant.io.DEBUG: Stream receive: �* [] []
+[2024-02-07T19:15:36.873881+07:00] elephant.io.DEBUG: Stream receive: 42/keep-alive,["message",{"success":true}] [] []
+[2024-02-07T19:15:36.874041+07:00] elephant.io.DEBUG: Got data: 42/keep-alive,["message",{"success":true}] [] []
+[2024-02-07T19:15:36.874223+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'event',nsp:'/keep-alive',event:'message',args:[{"success":true}]} [] []
+[2024-02-07T19:16:01.373824+07:00] elephant.io.DEBUG: Stream receive: � [] []
+[2024-02-07T19:16:01.374082+07:00] elephant.io.DEBUG: Stream receive: 2 [] []
+[2024-02-07T19:16:01.374187+07:00] elephant.io.DEBUG: Got data: 2 [] []
+[2024-02-07T19:16:01.374327+07:00] elephant.io.INFO: Got packet: PING{} [] []
+[2024-02-07T19:16:01.374396+07:00] elephant.io.DEBUG: Got PING, sending PONG [] []
+[2024-02-07T19:16:01.374459+07:00] elephant.io.DEBUG: Send data: 3 [] []
+[2024-02-07T19:16:01.374879+07:00] elephant.io.DEBUG: Stream write: ���z��� [] []
+[2024-02-07T19:16:07.392523+07:00] elephant.io.INFO: Emitting a new event {"event":"message","args":{"message":"Last message"}} []
+[2024-02-07T19:16:07.392756+07:00] elephant.io.DEBUG: Send data: 42/keep-alive,["message",{"message":"Last message"}] [] []
+[2024-02-07T19:16:07.393127+07:00] elephant.io.DEBUG: Stream write: ��j^4=|cb:j{a*I5cadaw5F}0zuav c0-HJsd&rusp$oJ [] []
+[2024-02-07T19:16:07.397817+07:00] elephant.io.INFO: Waiting for event {"event":"message"} []
+[2024-02-07T19:16:07.398116+07:00] elephant.io.DEBUG: Stream receive: �* [] []
+[2024-02-07T19:16:07.398227+07:00] elephant.io.DEBUG: Stream receive: 42/keep-alive,["message",{"success":true}] [] []
+[2024-02-07T19:16:07.398348+07:00] elephant.io.DEBUG: Got data: 42/keep-alive,["message",{"success":true}] [] []
+[2024-02-07T19:16:07.398520+07:00] elephant.io.INFO: Got packet: MESSAGE{type:'event',nsp:'/keep-alive',event:'message',args:[{"success":true}]} [] []
+[2024-02-07T19:16:07.399750+07:00] elephant.io.INFO: Closing connection to server [] []
+[2024-02-07T19:16:07.399972+07:00] elephant.io.DEBUG: Send data: 1 [] []
+[2024-02-07T19:16:07.400294+07:00] elephant.io.DEBUG: Stream write: ����� [] []
 ```
 
 ## Examples

@@ -12,6 +12,11 @@
 
 namespace ElephantIO;
 
+/**
+ * A sequence data reader.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SequenceReader
 {
     /**
@@ -30,16 +35,21 @@ class SequenceReader
     }
 
     /**
-     * Read a fixed size data.
+     * Read a fixed size data or remaining data if size is null.
      *
-     * @param int $len
+     * @param int $size
      * @return string
      */
-    public function read($len = 1)
+    public function read($size = 1)
     {
         if (!$this->isEof()) {
-            $result = substr($this->data, 0, $len);
-            $this->data = substr($this->data, $len);
+            if (null === $size) {
+                $result = $this->data;
+                $this->data = '';
+            } else {
+                $result = substr($this->data, 0, $size);
+                $this->data = substr($this->data, $size);
+            }
 
             return $result;
         }

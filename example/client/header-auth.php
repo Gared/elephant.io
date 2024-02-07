@@ -36,7 +36,7 @@ $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
     echo sprintf("Got a reply: %s\n", json_encode($retval->data));
 }
-$client->close();
+$client->disconnect();
 
 // create second instance
 $client = setup_client($namespace, $logger, [
@@ -68,6 +68,4 @@ $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
     echo sprintf("Got a reply: %s\n", json_encode($retval->data));
 }
-
-// close connection
-$client->close();
+$client->disconnect();

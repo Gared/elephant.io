@@ -12,56 +12,21 @@
 
 namespace ElephantIO\Engine;
 
-use InvalidArgumentException;
-
 /**
- * Represents the data for a Session
+ * Represents session.
  *
+ * @property string $id Session id
+ * @property float $heartbeat Last heartbeat time
+ * @property float[] $timeouts Ping timeout and interval
+ * @property string[] $upgrades Upgradable transports
+ * @property int $max_payload Maximum payload length
  * @author Baptiste Clavié <baptiste@wisembly.com>
  */
-class Session
+class Session extends Store
 {
-    /** @var integer session's id */
-    private $id;
-
-    /** @var integer session's last heartbeat */
-    private $heartbeat;
-
-    /** @var float[] session's and heartbeat's timeouts */
-    private $timeouts;
-
-    /** @var string[] supported upgrades */
-    private $upgrades;
-
-    /** @var integer maximum payload length */
-    private $maxPayload;
-
-    public function __construct($id, $interval, $timeout, array $upgrades, $maxPayload = null)
+    protected function initialize()
     {
-        $this->id = $id;
-        $this->upgrades = $upgrades;
-        $this->timeouts = ['timeout' => (float)$timeout,
-            'interval' => (float)$interval];
-        $this->maxPayload = $maxPayload;
-
-        $this->resetHeartbeat();
-    }
-
-    /**
-     * The property should not be modified, hence the private accessibility on them
-     *
-     * @param string $prop
-     * @return mixed
-     */
-    public function __get($prop)
-    {
-        static $list = ['id', 'upgrades', 'maxPayload'];
-
-        if (!\in_array($prop, $list)) {
-            throw new InvalidArgumentException(\sprintf('Unknown property "%s" for the Session object. Only the following are availables : ["%s"]', $prop, \implode('", "', $list)));
-        }
-
-        return $this->$prop;
+        $this->keys = ['id', 'upgrades', 'timeouts', 'max_payload', '_heartbeat'];
     }
 
     protected function getTime()
@@ -70,7 +35,7 @@ class Session
     }
 
     /**
-     * Get timeout.
+     * Get ping timeout.
      *
      * @return float
      */
@@ -80,7 +45,7 @@ class Session
     }
 
     /**
-     * Get interval.
+     * Get ping interval.
      *
      * @return float
      */
@@ -90,7 +55,7 @@ class Session
     }
 
     /**
-     * Checks whether a new heartbeat is necessary, and does a new heartbeat if it is the case
+     * Checks whether a new heartbeat is necessary, and does a new heartbeat if it is the case.
      *
      * @return bool true if there was a heartbeat, false otherwise
      */
@@ -117,14 +82,40 @@ class Session
         return $this;
     }
 
-    public function __toString()
+    /**
+     * Create session from array.
+     *
+     * @param array $array
+     * @return \ElephantIO\Engine\Session
+     */
+    public static function from($array)
     {
-        return json_encode([
-            'id' => $this->id,
-            'heartbeat' => $this->heartbeat,
-            'timeouts' => $this->timeouts,
-            'upgrades' => $this->upgrades,
-            'maxPayload' => $this->maxPayload,
-        ]);
+        $mapped = [];
+        foreach ($array as $k => $v) {
+            $key = $k;
+            switch ($k) {
+                case 'sid':
+                    $key = 'id';
+                    break;
+                case 'pingInterval':
+                    $key = 'timeouts';
+                    $v = ['interval' => $v];
+                    break;
+                case 'pingTimeout':
+                    $key = 'timeouts';
+                    $v = ['timeout' => $v];
+                    break;
+                case 'maxPayload':
+                    $key = 'max_payload';
+                    break;
+            }
+            if (is_array($v) && isset($mapped[$key])) {
+                $mapped[$key] = array_merge($mapped[$key], $v);
+            } else {
+                $mapped[$key] = $v;
+            }
+        }
+
+        return static::create($mapped);
     }
 }

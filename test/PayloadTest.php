@@ -10,23 +10,24 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO;
+namespace ElephantIO\Test;
 
+use ElephantIO\Payload as BasePayload;
+use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 use ReflectionProperty;
-use PHPUnit\Framework\TestCase;
 
-class AbstractPayloadTest extends TestCase
+class PayloadTest extends TestCase
 {
     public function testMaskData()
     {
         $payload = new Payload();
 
-        $refl = new ReflectionProperty('ElephantIO\\Payload', 'maskKey');
+        $refl = new ReflectionProperty('ElephantIO\\Test\\Payload', 'maskKey');
         $refl->setAccessible(true);
         $refl->setValue($payload, '?EV!');
 
-        $refl = new ReflectionMethod('ElephantIO\\Payload', 'maskData');
+        $refl = new ReflectionMethod('ElephantIO\\Test\\Payload', 'maskData');
         $refl->setAccessible(true);
 
         $this->assertSame('592a39', bin2hex($refl->invoke($payload, 'foo')));
@@ -34,6 +35,6 @@ class AbstractPayloadTest extends TestCase
 }
 
 /** Fixtures for these tests */
-class Payload extends AbstractPayload
+class Payload extends BasePayload
 {
 }

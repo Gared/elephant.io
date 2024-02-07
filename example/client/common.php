@@ -62,10 +62,14 @@ function setup_logger()
 function setup_client($namespace, $logger = null, $options = [])
 {
     $url = 'http://localhost:14000';
+    if (isset($options['url'])) {
+        $url = $options['url'];
+        unset($options['url']);
+    }
 
     $logger = $logger ?? setup_logger();
     $client = Client::create($url, array_merge(['client' => client_version(), 'logger' => $logger], $options));
-    $client->initialize();
+    $client->connect();
     if ($namespace) {
         $client->of(sprintf('/%s', $namespace));
     }

@@ -40,4 +40,4 @@ while (true) {
     $client->drain(1.0);
     echo '.';
 }
-$client->close();
+$client->disconnect();

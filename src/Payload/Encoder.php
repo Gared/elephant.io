@@ -12,18 +12,18 @@
 
 namespace ElephantIO\Payload;
 
-use ElephantIO\AbstractPayload;
+use ElephantIO\Payload;
 
 /**
- * Encode the payload before sending it to a frame
+ * Encode the payload before sending it to a frame.
  *
- * Based on the work of the following :
+ * Based on the work of the following:
  *   - Ludovic Barreca (@ludovicbarreca), project founder
  *   - Byeoung Wook (@kbu1564) in #49
  *
  * @author Baptiste Clavié <baptiste@wisembly.com>
  */
-class Encoder extends AbstractPayload
+class Encoder extends Payload
 {
     private $data;
 
@@ -35,7 +35,7 @@ class Encoder extends AbstractPayload
 
     /**
      * @param string  $data   data to encode
-     * @param integer $opCode OpCode to use (one of AbstractPayload's constant)
+     * @param integer $opCode OpCode to use (one of Payload's constant)
      * @param bool    $mask   Should we use a mask ?
      */
     public function __construct($data, $opCode, $mask)

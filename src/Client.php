@@ -12,19 +12,19 @@
 
 namespace ElephantIO;
 
-use Psr\Log\NullLogger;
-use Psr\Log\LoggerInterface;
-use InvalidArgumentException;
 use ElephantIO\Engine\SocketIO\Version0X;
 use ElephantIO\Engine\SocketIO\Version1X;
 use ElephantIO\Engine\SocketIO\Version2X;
 use ElephantIO\Engine\SocketIO\Version3X;
 use ElephantIO\Engine\SocketIO\Version4X;
 use ElephantIO\Exception\SocketException;
+use InvalidArgumentException;
+use Psr\Log\NullLogger;
+use Psr\Log\LoggerInterface;
 
 /**
- * Represents the IO Client which will send and receive the requests to the
- * websocket server. It basically suggercoat the Engine used with loggers.
+ * Represents socket.io client which will send and receive the requests to the
+ * socket.io server.
  *
  * @author Baptiste Clavié <baptiste@wisembly.com>
  */
@@ -51,7 +51,18 @@ class Client
 
     public function __destruct()
     {
-        $this->close();
+        $this->disconnect();
+    }
+
+    /**
+     * Connect to server.
+     *
+     * @deprecated Use connect() instead
+     * @return \ElephantIO\Client
+     */
+    public function initialize()
+    {
+        return $this->connect();
     }
 
     /**
@@ -59,7 +70,7 @@ class Client
      *
      * @return \ElephantIO\Client
      */
-    public function initialize()
+    public function connect()
     {
         try {
             $this->logger->info('Connecting to server');
@@ -75,61 +86,36 @@ class Client
     }
 
     /**
-     * Emit an event to server.
+     * Disconnect from server.
      *
-     * @param string $event
-     * @param array  $args
-     * @return int Number of bytes written
+     * @deprecated Use disconnect() instead
+     * @return \ElephantIO\Client
      */
-    public function emit($event, array $args)
+    public function close()
     {
-        $this->logger->info('Sending a new message', ['event' => $event, 'args' => $args]);
-
-        return $this->engine->emit($event, $args);
+        return $this->disconnect();
     }
 
     /**
-     * Wait an event arrived from server.
+     * Disconnect from server.
      *
-     * @param string $event
-     * @return \stdClass
+     * @return \ElephantIO\Client
      */
-    public function wait($event)
+    public function disconnect()
     {
-        $this->logger->info('Waiting for event', ['event' => $event]);
+        if ($this->engine->connected()) {
+            $this->logger->info('Closing connection to server');
+            $this->engine->disconnect();
+        }
 
-        return $this->engine->wait($event);
-    }
-
-    /**
-     * Read data from socket.
-     *
-     * @param float $timeout Timeout in seconds
-     * @return string Message read from socket
-     */
-    public function read($timeout = 0)
-    {
-        $this->logger->info('Reading a new message from socket');
-
-        return $this->engine->read($timeout);
-    }
-
-    /**
-     * Drain socket.
-     *
-     * @param float $timeout Timeout in seconds
-     * @return mixed
-     */
-    public function drain($timeout = 0)
-    {
-        return $this->engine->drain($timeout);
+        return $this;
     }
 
     /**
      * Set socket namespace.
      *
      * @param string $namespace The namespace
-     * @return \stdClass
+     * @return \ElephantIO\Engine\Packet
      */
     public function of($namespace)
     {
@@ -139,18 +125,42 @@ class Client
     }
 
     /**
-     * Close the connection.
+     * Emit an event to server.
      *
-     * @return \ElephantIO\Client
+     * @param string $event
+     * @param array  $args
+     * @return int Number of bytes written
      */
-    public function close()
+    public function emit($event, array $args)
     {
-        if ($this->engine->connected()) {
-            $this->logger->info('Closing connection to server');
-            $this->engine->close();
-        }
+        $this->logger->info('Emitting a new event', ['event' => $event, 'args' => $args]);
 
-        return $this;
+        return $this->engine->emit($event, $args);
+    }
+
+    /**
+     * Wait an event arrived from server.
+     *
+     * @param string $event
+     * @param float $timeout Timeout in seconds
+     * @return \ElephantIO\Engine\Packet
+     */
+    public function wait($event, $timeout = 0)
+    {
+        $this->logger->info('Waiting for event', ['event' => $event]);
+
+        return $this->engine->wait($event, $timeout);
+    }
+
+    /**
+     * Drain socket.
+     *
+     * @param float $timeout Timeout in seconds
+     * @return \ElephantIO\Engine\Packet
+     */
+    public function drain($timeout = 0)
+    {
+        return $this->engine->drain($timeout);
     }
 
     /**
@@ -170,7 +180,7 @@ class Client
      * @param string $url
      * @param array $options
      * @throws \InvalidArgumentException
-     * @return \ElephantIO\Engine\AbstractSocketIO
+     * @return \ElephantIO\Engine\SocketIO
      */
     public static function engine($version, $url, $options = [])
     {

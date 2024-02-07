@@ -10,8 +10,10 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Payload;
+namespace ElephantIO\Test\Payload;
 
+use ElephantIO\Payload\Decoder;
+use ElephantIO\Payload\Encoder;
 use PHPUnit\Framework\TestCase;
 
 class PayloadTest extends TestCase

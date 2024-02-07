@@ -38,7 +38,7 @@ jobs:
       with:
         cache: 'npm'
         cache-dependency-path: 'example/server/package-lock.json'
-  
+
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
 
@@ -65,6 +65,7 @@ jobs:
         sleep 5
         cd example/client
         php -f binary-event.php
+        php -f error-handling.php
         php -f handshake-auth.php
         php -f header-auth.php
         php -f keep-alive.php

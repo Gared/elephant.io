@@ -26,4 +26,4 @@ $client->emit($event, ['message' => 'This is second message']);
 if ($retval = $client->wait($event)) {
     echo sprintf("Got a reply for second message: %s\n", json_encode($retval->data));
 }
-$client->close();
+$client->disconnect();

@@ -12,19 +12,57 @@
 
 namespace ElephantIO;
 
+/**
+ * An underlying socket stream to handle raw io.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 interface StreamInterface
 {
-    /**
-     * Try to connect to stream URL.
-     */
-    public function connect();
+    public const EOL = "\r\n";
 
     /**
-     * Check if stream is currently connected.
+     * Is stream available?
      *
      * @return bool
      */
-    public function connected();
+    public function available();
+
+    /**
+     * Check if stream is currently readable.
+     *
+     * @return bool
+     */
+    public function readable();
+
+    /**
+     * Check if stream is already upgraded.
+     *
+     * @return bool
+     */
+    public function upgraded();
+
+    /**
+     * Open stream URL.
+     */
+    public function open();
+
+    /**
+     * Close the stream.
+     */
+    public function close();
+
+    /**
+     * Upgrade the stream.
+     */
+    public function upgrade();
+
+    /**
+     * Is the stream was upgraded?
+     *
+     * @return bool
+     */
+    public function wasUpgraded();
 
     /**
      * Read data from underlying stream.
@@ -32,7 +70,7 @@ interface StreamInterface
      * @param int $size
      * @return string
      */
-    public function read($size);
+    public function read($size = null);
 
     /**
      * Write data to underlying stream.
@@ -43,21 +81,6 @@ interface StreamInterface
     public function write($data);
 
     /**
-    * Perform HTTP request.
-    *
-    * @param string $uri
-    * @param array $headers
-    * @param array $options
-    * @return bool
-    */
-    public function request($uri, $headers = [], $options = []);
-
-    /**
-     * Close the stream.
-     */
-    public function close();
-
-    /**
      * Get url.
      *
      * @return \ElephantIO\SocketUrl
@@ -65,46 +88,18 @@ interface StreamInterface
     public function getUrl();
 
     /**
-     * Get errors from the last connect attempts.
+     * Get errors from the last open attempts.
      *
      * @return array
      */
     public function getErrors();
 
     /**
-     * Get stream meta data.
+     * Get stream metadata.
      *
      * @return array
      */
     public function getMetadata();
-
-    /**
-     * Get HTTP reponse headers.
-     *
-     * @return array
-     */
-    public function getHeaders();
-
-    /**
-     * Get HTTP response status.
-     *
-     * @return string
-     */
-    public function getStatus();
-
-    /**
-     * Get HTTP response status code.
-     *
-     * @return string
-     */
-    public function getStatusCode();
-
-    /**
-     * Get HTTP response body.
-     *
-     * @return string
-     */
-    public function getBody();
 
     /**
      * Get connection timeout (in second).

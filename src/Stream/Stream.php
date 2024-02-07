@@ -12,17 +12,17 @@
 
 namespace ElephantIO\Stream;
 
-use Psr\Log\NullLogger;
-use InvalidArgumentException;
 use ElephantIO\SocketUrl;
 use ElephantIO\StreamInterface;
+use InvalidArgumentException;
+use Psr\Log\NullLogger;
 
 /**
- * Abstract stream provides abstraction for socket client stream.
+ * Stream provides abstraction for socket client stream.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-abstract class AbstractStream implements StreamInterface
+abstract class Stream implements StreamInterface
 {
     /**
      * @var \ElephantIO\SocketUrl

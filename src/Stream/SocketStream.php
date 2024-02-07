@@ -20,14 +20,22 @@ use ElephantIO\Util;
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SocketStream extends AbstractStream
+class SocketStream extends Stream
 {
-    public const EOL = "\r\n";
-
     /**
      * @var resource
      */
     protected $handle = null;
+
+    /**
+     * @var bool
+     */
+    protected $upgraded = null;
+
+    /**
+     * @var bool
+     */
+    protected $wasUpgraded = null;
 
     /**
      * @var array
@@ -37,27 +45,14 @@ class SocketStream extends AbstractStream
     /**
      * @var array
      */
-    protected $result = null;
-
-    /**
-     * @var array
-     */
     protected $metadata = null;
-
-    /**
-     * @var bool
-     */
-    protected $chunked = null;
 
     /**
      * {@inheritDoc}
      */
     protected function initialize()
     {
-        $autoConnect = isset($this->options['autoconnect']) ? $this->options['autoconnect'] : true;
-        if ($autoConnect) {
-            $this->connect();
-        }
+        $this->open();
     }
 
     /**
@@ -110,69 +105,48 @@ class SocketStream extends AbstractStream
     }
 
     /**
-     * Copied from https://stackoverflow.com/questions/10793017/how-to-easily-decode-http-chunked-encoded-string-when-making-raw-http-request
+     * {@inheritDoc}
      */
-    protected function decodeChunked($str)
+    public function available()
     {
-        for ($res = ''; !empty($str); $str = trim($str)) {
-            $pos = strpos($str, "\r\n");
-            $len = hexdec(substr($str, 0, $pos));
-            $res .= substr($str, $pos + 2, $len);
-            $str = substr($str, $pos + 2 + $len);
-        }
-
-        return $res;
+        return is_resource($this->handle);
     }
 
     /**
-     * Normalize request headers from key-value pair array.
-     *
-     * @param array $headers
-     * @return array
+     * {@inheritDoc}
      */
-    protected function normalizeHeaders($headers)
+    public function readable()
     {
-        return array_map(
-            function($key, $value) {
-                return "$key: $value";
-            },
-            array_keys($headers),
-            $headers
-        );
-    }
-
-    /**
-     * Get match for header name.
-     *
-     * @param string $name
-     * @param string $header
-     * @return string
-     */
-    public function getHeaderMatch($name, $header)
-    {
-        $prefix = sprintf('%s:', $name);
-        if (0 === stripos($header, $prefix)) {
-            return trim(substr($header, strlen($prefix)));
+        if ($metadata = $this->readMetadata()) {
+            return $metadata['eof'] ? false : true;
         }
     }
 
     /**
      * {@inheritDoc}
      */
-    public function connect()
+    public function upgraded()
+    {
+        return $this->upgraded;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function open()
     {
         $errors = [null, null];
         $timeout = $this->getTimeout();
         $address = $this->url->getAddress();
 
-        $this->logger->info(sprintf('Socket connect %s', $address));
+        $this->logger->info(sprintf('Stream connect: %s', $address));
         $flags = STREAM_CLIENT_CONNECT;
         if (!isset($this->options['persistent']) || $this->options['persistent']) {
             $flags |= STREAM_CLIENT_PERSISTENT;
         }
 
         $context = !isset($this->context['headers']) ? $this->context :
-            array_merge($this->context, ['headers' => $this->normalizeHeaders($this->context['headers'])]);
+            array_merge($this->context, ['headers' => Util::normalizeHeaders($this->context['headers'])]);
 
         $this->handle = @stream_socket_client(
             sprintf('%s/%s', $address, uniqid()),
@@ -194,20 +168,51 @@ class SocketStream extends AbstractStream
     /**
      * {@inheritDoc}
      */
-    public function connected()
+    public function upgrade()
     {
-        if ($metadata = $this->readMetadata()) {
-            return $metadata['eof'] ? false : true;
+        if (null === $this->upgraded) {
+            $this->upgraded = true;
+            $this->wasUpgraded = true;
         }
     }
 
     /**
      * {@inheritDoc}
      */
-    public function read($size)
+    public function wasUpgraded()
+    {
+        if ($this->wasUpgraded) {
+            $this->wasUpgraded = false;
+
+            return true;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function close()
+    {
+        if (!is_resource($this->handle)) {
+            return;
+        }
+        @stream_socket_shutdown($this->handle, STREAM_SHUT_RDWR);
+        fclose($this->handle);
+        $this->handle = null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function read($size = null)
     {
         if (is_resource($this->handle)) {
-            return fread($this->handle, $size);
+            $data = null !== $size ? fread($this->handle, (int) $size) : fgets($this->handle);
+            if (false !== $data && strlen($data)) {
+                $this->logger->debug(sprintf('Stream receive: %s', Util::truncate($data)));
+            }
+
+            return $data;
         }
     }
 
@@ -227,7 +232,7 @@ class SocketStream extends AbstractStream
                 if ($written > 0) {
                     $lines = explode(static::EOL, substr($data, 0, $written));
                     foreach ($lines as $line) {
-                        $this->logger->debug(sprintf('Write data: %s', Util::truncate($line)));
+                        $this->logger->debug(sprintf('Stream write: %s', Util::truncate($line)));
                     }
                     if (null === $bytes) {
                         $bytes = $written;
@@ -245,109 +250,6 @@ class SocketStream extends AbstractStream
         }
 
         return $bytes;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function request($uri, $headers = [], $options = [])
-    {
-        if (!is_resource($this->handle)) {
-            return;
-        }
-
-        $method = isset($options['method']) ? $options['method'] : 'GET';
-        $timeout = isset($options['timeout']) ? $options['timeout'] : 0;
-        $skip_body = isset($options['skip_body']) ? $options['skip_body'] : false;
-        $payload = isset($options['payload']) ? $options['payload'] : null;
-
-        if ($payload) {
-            $contentType = $headers['Content-Type'] ?? null;
-
-            if (null === $contentType) {
-                $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
-                $headers = array_merge([
-                    'Content-Type' => 'text/plain; charset=UTF-8',
-                    'Content-Length' => strlen($payload),
-                ], $headers);
-            }
-        }
-
-        $headers = array_merge(['Host' => $this->url->getHost()], $headers);
-        if (isset($this->options['headers'])) {
-            $headers = array_merge($headers, $this->options['headers']);
-        }
-        $request = array_merge([
-            sprintf('%s %s HTTP/1.1', strtoupper($method), $uri),
-        ], $this->normalizeHeaders($headers));
-
-        $request = implode(static::EOL, $request) . static::EOL . static::EOL . $payload;
-
-        $this->write($request);
-
-        $this->result = ['headers' => [], 'body' => null];
-
-        // wait for response
-        $header = true;
-        $len = null;
-        $start = microtime(true);
-        $this->logger->debug('Waiting for response...');
-        while (true) {
-            if ($timeout > 0 && microtime(true) - $start >= $timeout) {
-                break;
-            }
-            if (!$this->connected()) {
-                break;
-            }
-            if ($content = ($header || $len === null) ? fgets($this->handle) : fread($this->handle, (int) $len)) {
-                $this->logger->debug(sprintf('Receive: %s', Util::truncate(trim($content))));
-                if ($content === static::EOL && $header && count($this->result['headers'])) {
-                    if ($skip_body) {
-                        break;
-                    }
-                    $header = false;
-                } else {
-                    if ($header) {
-                        if ($content = trim($content)) {
-                            $this->result['headers'][] = $content;
-                            if (null === $len && ($contentLength = $this->getHeaderMatch('Content-Length', $content))) {
-                                $len = (int) $contentLength;
-                            }
-                            if (null === $this->chunked &&
-                                ($transferEncoding = $this->getHeaderMatch('Transfer-Encoding', $content)) &&
-                                strtolower($transferEncoding) === 'chunked') {
-                                $this->chunked = true;
-                            }
-                        }
-                    } else {
-                        $this->result['body'] .= $content;
-                        if ($this->chunked && null === $len && $content === '0' . static::EOL) {
-                            $this->result['body'] = $this->decodeChunked($this->result['body']);
-                            break;
-                        }
-                        if ($len === strlen($this->result['body'])) {
-                            break;
-                        }
-                    }
-                }
-            }
-            usleep($this->options['wait']);
-        }
-
-        return count($this->result['headers']) ? true : false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function close()
-    {
-        if (!is_resource($this->handle)) {
-            return;
-        }
-        @stream_socket_shutdown($this->handle, STREAM_SHUT_RDWR);
-        fclose($this->handle);
-        $this->handle = null;
     }
 
     /**
@@ -372,43 +274,5 @@ class SocketStream extends AbstractStream
     public function getMetadata()
     {
         return $this->metadata;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getHeaders()
-    {
-        return is_array($this->result) ? $this->result['headers'] : null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getBody()
-    {
-        return is_array($this->result) ? $this->result['body'] : null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getStatus()
-    {
-        if (count($headers = $this->getHeaders())) {
-            return $headers[0];
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getStatusCode()
-    {
-        if (($status = $this->getStatus()) && preg_match('#^HTTP\/\d+\.\d+#', $status)) {
-            list(, $code, ) = explode(' ', $status, 3);
-
-            return $code;
-        }
     }
 }

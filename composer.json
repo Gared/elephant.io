@@ -1,8 +1,8 @@
 {
     "name": "elephantio/elephant.io",
     "type": "library",
-    "description": "Send events to a real time websocket engine through PHP",
-    "keywords": ["Nodejs", "WebSocket", "Dialog", "Real Time"],
+    "description": "Send events to a socket.io server through PHP",
+    "keywords": ["Nodejs", "WebSocket", "Dialog", "Real Time", "socket.io"],
     "license": "MIT",
     "homepage": "https://elephantio.github.io/elephant.io/",
     "authors": [

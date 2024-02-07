@@ -15,10 +15,10 @@ namespace ElephantIO;
 use Psr\Log\LoggerAwareInterface;
 
 /**
- * Represents an engine used within ElephantIO to send / receive messages from
- * a websocket real time server
+ * Represents an engine used within Elephant.io to send/receive messages from
+ * a socket.io server.
  *
- * Loosely based on the work of the following :
+ * Loosely based on the work of the following:
  *   - Ludovic Barreca (@ludovicbarreca)
  *   - Mathieu Lallemand (@lalmat)
  *
@@ -27,6 +27,13 @@ use Psr\Log\LoggerAwareInterface;
 interface EngineInterface extends LoggerAwareInterface
 {
     /**
+     * Get the name of the engine.
+     *
+     * @return string
+     */
+    public function getName();
+
+    /**
      * Connect to the targeted server.
      *
      * @return \ElephantIO\EngineInterface
@@ -34,18 +41,26 @@ interface EngineInterface extends LoggerAwareInterface
     public function connect();
 
     /**
-     * Close connection to server.
-     *
-     * @return \ElephantIO\EngineInterface
-     */
-    public function close();
-
-    /**
      * Is connected to server?
      *
      * @return bool
      */
     public function connected();
+
+    /**
+     * Disconnect from server.
+     *
+     * @return \ElephantIO\EngineInterface
+     */
+    public function disconnect();
+
+    /**
+     * Set socket namespace.
+     *
+     * @param string $namespace The namespace
+     * @return \ElephantIO\Engine\Packet
+     */
+    public function of($namespace);
 
     /**
      * Emit an event to server.
@@ -60,50 +75,16 @@ interface EngineInterface extends LoggerAwareInterface
      * Wait for event to arrive.
      *
      * @param string $event
-     * @return \stdClass
-     */
-    public function wait($event);
-
-    /**
-     * Read data from socket.
-     *
      * @param float $timeout Timeout in seconds
-     * @return string Data read from socket
+     * @return \ElephantIO\Engine\Packet
      */
-    public function read($timeout = 0);
+    public function wait($event, $timeout = 0);
 
     /**
      * Drain data from socket.
      *
      * @param float $timeout Timeout in seconds
-     * @return mixed
+     * @return \ElephantIO\Engine\Packet
      */
     public function drain($timeout = 0);
-
-    /**
-     * Keep the connection alive.
-     */
-    public function keepAlive();
-
-    /**
-     * Get the name of the engine.
-     *
-     * @return string
-     */
-    public function getName();
-
-    /**
-     * Set socket namespace.
-     *
-     * @param string $namespace The namespace
-     * @return \stdClass
-     */
-    public function of($namespace);
-
-    /**
-     * Get options.
-     *
-     * @param array
-     */
-    public function getOptions();
 }
