@@ -13,7 +13,7 @@
 namespace ElephantIO\Engine\Transport;
 
 use ElephantIO\Engine\Transport;
-use ElephantIO\StreamInterface;
+use ElephantIO\Stream\StreamInterface;
 use ElephantIO\Util;
 
 /**
@@ -221,7 +221,7 @@ class Polling extends Transport
     protected function decodeChunked($str)
     {
         for ($res = ''; !empty($str); $str = trim($str)) {
-            $pos = strpos($str, "\r\n");
+            $pos = strpos($str, StreamInterface::EOL);
             $len = hexdec(substr($str, 0, $pos));
             $res .= substr($str, $pos + 2, $len);
             $str = substr($str, $pos + 2 + $len);

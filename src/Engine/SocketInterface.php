@@ -29,7 +29,7 @@ interface SocketInterface
     /**
      * Get socket stream.
      *
-     * @return \ElephantIO\StreamInterface
+     * @return \ElephantIO\Stream\StreamInterface
      */
     public function getStream();
 

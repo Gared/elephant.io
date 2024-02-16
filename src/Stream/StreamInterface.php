@@ -10,7 +10,7 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO;
+namespace ElephantIO\Stream;
 
 /**
  * An underlying socket stream to handle raw io.

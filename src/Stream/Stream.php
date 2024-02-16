@@ -13,7 +13,6 @@
 namespace ElephantIO\Stream;
 
 use ElephantIO\SocketUrl;
-use ElephantIO\StreamInterface;
 use InvalidArgumentException;
 use Psr\Log\NullLogger;
 
@@ -78,7 +77,7 @@ abstract class Stream implements StreamInterface
     /**
      * Create socket stream.
      *
-     * @return \ElephantIO\StreamInterface
+     * @return \ElephantIO\Stream\StreamInterface
      */
     public static function create($url, $context = [], $options = [])
     {

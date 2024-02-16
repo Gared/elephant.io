@@ -10,7 +10,7 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO;
+namespace ElephantIO\Engine;
 
 use Psr\Log\LoggerAwareInterface;
 
@@ -36,7 +36,7 @@ interface EngineInterface extends LoggerAwareInterface
     /**
      * Connect to the targeted server.
      *
-     * @return \ElephantIO\EngineInterface
+     * @return \ElephantIO\Engine\EngineInterface
      */
     public function connect();
 
@@ -50,7 +50,7 @@ interface EngineInterface extends LoggerAwareInterface
     /**
      * Disconnect from server.
      *
-     * @return \ElephantIO\EngineInterface
+     * @return \ElephantIO\Engine\EngineInterface
      */
     public function disconnect();
 

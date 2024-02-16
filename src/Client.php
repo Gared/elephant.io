@@ -12,6 +12,7 @@
 
 namespace ElephantIO;
 
+use ElephantIO\Engine\EngineInterface;
 use ElephantIO\Engine\SocketIO\Version0X;
 use ElephantIO\Engine\SocketIO\Version1X;
 use ElephantIO\Engine\SocketIO\Version2X;
@@ -36,7 +37,7 @@ class Client
     public const CLIENT_3X = 3;
     public const CLIENT_4X = 4;
 
-    /** @var \ElephantIO\EngineInterface */
+    /** @var \ElephantIO\Engine\EngineInterface */
     private $engine;
 
     /** @var \Psr\Log\LoggerInterface */
@@ -170,7 +171,7 @@ class Client
     /**
      * Gets the engine used, for more advanced functions.
      *
-     * @return \ElephantIO\EngineInterface
+     * @return \ElephantIO\Engine\EngineInterface
      */
     public function getEngine()
     {

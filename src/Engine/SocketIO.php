@@ -12,7 +12,6 @@
 
 namespace ElephantIO\Engine;
 
-use ElephantIO\EngineInterface;
 use ElephantIO\Engine\Packet;
 use ElephantIO\Engine\Transport\Polling;
 use ElephantIO\Engine\Transport\Websocket;
@@ -48,7 +47,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /** @var \ElephantIO\Engine\Option Array of options for the engine */
     protected $options;
 
-    /** @var \ElephantIO\StreamInterface Resource to the connected stream */
+    /** @var \ElephantIO\Stream\StreamInterface Resource to the connected stream */
     protected $stream;
 
     /** @var string Current socket transport */
@@ -110,7 +109,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /**
      * Get underlying socket stream.
      *
-     * @return \ElephantIO\StreamInterface
+     * @return \ElephantIO\Stream\StreamInterface
      */
     public function getStream()
     {
