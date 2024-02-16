@@ -117,4 +117,61 @@ class Util
 
         return $message;
     }
+
+    /**
+     * Convert array or any value for string representaion.
+     *
+     * @param array|mixed $value
+     * @return string
+     */
+    public static function toStr($value)
+    {
+        $result = null;
+        if (is_array($value)) {
+            $values = [];
+            $hasKeys = true;
+            foreach ($value as $k => $v) {
+                $values[$k] = static::toStr($v);
+                if (is_int($k) && $hasKeys) {
+                    $hasKeys = false;
+                }
+            }
+            if ($hasKeys) {
+                $values = array_map(
+                    function($key, $value) {
+                        return "\"$key\":$value";
+                    },
+                    array_keys($values),
+                    $values
+                );
+                $result = sprintf('{%s}', implode(',', $values));
+            } else {
+                $result = sprintf('[%s]', implode(',', $values));
+            }
+        } else if (is_resource($value)) {
+            fseek($value, 0);
+            $result = '<' . static::truncate(stream_get_contents($value), 32) . '>';
+        } else if (is_string($value)) {
+            $result = '"' . $value . '"';
+        } else {
+            $result = var_export($value, true);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Create a resource from value.
+     *
+     * @param string $value
+     * @return resource
+     */
+    public static function toResource($value)
+    {
+        if (false !== ($result = fopen('php://memory', 'w+'))) {
+            fwrite($result, $value);
+        }
+
+        return $result;
+    }
 }

@@ -31,10 +31,10 @@ $data = [
     'message' => 'How are you?',
     'token' => $token,
 ];
-echo sprintf("Sending message: %s\n", json_encode($data));
+echo sprintf("Sending message: %s\n", inspect($data));
 $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply: %s\n", $retval->inspect());
 }
 $client->disconnect();
 
@@ -51,10 +51,10 @@ $data = [
     'message' => 'Do you remember me?',
     'token' => $token,
 ];
-echo sprintf("Sending message: %s\n", json_encode($data));
+echo sprintf("Sending message: %s\n", inspect($data));
 $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply: %s\n", $retval->inspect());
 }
 
 // send message with invalid token
@@ -63,9 +63,9 @@ $data = [
     'message' => 'Do you remember me?',
     'token' => $invalidToken,
 ];
-echo sprintf("Sending message: %s\n", json_encode($data));
+echo sprintf("Sending message: %s\n", inspect($data));
 $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply: %s\n", $retval->inspect());
 }
 $client->disconnect();

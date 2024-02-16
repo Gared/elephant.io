@@ -147,7 +147,7 @@ class Version1X extends SocketIO
         $data = Util::concatNamespace($this->namespace, json_encode([$event, $args]));
         if ($type === static::PACKET_BINARY_EVENT) {
             $data = sprintf('%d-%s', count($attachments), $data);
-            $this->logger->debug(sprintf('Binary event arguments %s', json_encode($args)));
+            $this->logger->debug(sprintf('Binary event arguments %s', Util::toStr($args)));
         }
 
         $raws = null;
@@ -339,7 +339,11 @@ class Version1X extends SocketIO
             foreach ($array as $key => &$value) {
                 if (is_array($value)) {
                     if (isset($value['_placeholder']) && $value['_placeholder'] && $value['num'] === $index) {
-                        $value = $data;
+                        if ($this->options->binary_as_resource) {
+                            $value = Util::toResource($data);
+                        } else {
+                            $value = $data;
+                        }
                         $this->logger->debug(sprintf('Replacing binary attachment for %d (%s)', $index, $key));
                     } else {
                         $this->replaceAttachment($value, $index, $data);

@@ -12,6 +12,7 @@
 
 namespace ElephantIO\Engine;
 
+use ElephantIO\Util;
 use InvalidArgumentException;
 
 /**
@@ -114,6 +115,19 @@ class Store
     }
 
     /**
+     * Inspect data.
+     *
+     * @param array $data
+     * @return string
+     */
+    public function inspect($data = null)
+    {
+        $data = null === $data && isset($this->data) ? $this->data : $data;
+
+        return Util::toStr($data);
+    }
+
+    /**
      * Export key-value as array.
      *
      * @return array
@@ -192,7 +206,7 @@ class Store
                     if (isset($this->$key)) {
                         $value = $this->getMappedValue($key, $this->$key);
                         if (null !== $value && ($flag !== '!' || null === $xclusive)) {
-                            $items[] = sprintf('%s:%s', $key, is_array($value) ? json_encode($value) : var_export($value, true));
+                            $items[$key] = $value;
                             if ($flag === '!') {
                                 $xclusive = true;
                             }
@@ -206,7 +220,7 @@ class Store
             $title = substr($clazz, strrpos($clazz, '\\') + 1);
         }
 
-        return sprintf('%s{%s}', strtoupper($title), implode(',', $items));
+        return sprintf('%s%s', strtoupper($title), Util::toStr($items));
     }
 
     /**

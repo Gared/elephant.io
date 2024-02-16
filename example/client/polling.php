@@ -20,10 +20,10 @@ $client = setup_client($namespace, null, ['transports' => 'polling']);
 
 $client->emit($event, ['message' => 'This is first message']);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply for first message: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply for first message: %s\n", $retval->inspect());
 }
 $client->emit($event, ['message' => 'This is second message']);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply for second message: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply for second message: %s\n", $retval->inspect());
 }
 $client->disconnect();

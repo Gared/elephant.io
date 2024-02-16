@@ -20,8 +20,7 @@ $logger = setup_logger();
 // create binary payload
 $filename = __DIR__ . '/../../test/Payload/data/payload-7d.txt';
 $payload = fopen($filename, 'rb');
-$bindata = fopen('php://memory', 'w+');
-fwrite($bindata, '1234567890');
+$bindata = create_resource('1234567890');
 
 foreach ([
     'websocket' => ['transport' => 'websocket'],
@@ -31,8 +30,7 @@ foreach ([
     $client = setup_client($namespace, $logger, $options);
     $client->emit($event, ['data1' => ['test' => $payload], 'data2' => $bindata]);
     if ($retval = $client->wait($event)) {
-        truncate_data($retval->data);
-        echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+        echo sprintf("Got a reply: %s\n", $retval->inspect());
     }
     $client->disconnect();
 }

@@ -28,7 +28,7 @@ class StoreTest extends TestCase
             'hidden' => 'hidden',
         ]);
 
-        $this->assertSame("ID{number:9,disp:'disp'}", (string) $store, 'Properly cast store to string');
+        $this->assertSame("ID{\"number\":9,\"disp\":\"disp\"}", (string) $store, 'Properly cast store to string');
         $store->id = 'the-id';
         $this->assertEquals('the-id', $store->id, 'Store can retrieve the value by its key');
 

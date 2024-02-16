@@ -101,3 +101,25 @@ function truncate_data(&$data, $len = 100)
         }
     }
 }
+
+/**
+ * Inspect data.
+ *
+ * @param array $data
+ * @return string
+ */
+function inspect($data)
+{
+    return Util::toStr($data);
+}
+
+/**
+ * Create a resource from string.
+ *
+ * @param string $data
+ * @return resource
+ */
+function create_resource($data)
+{
+    return Util::toResource($data);
+}

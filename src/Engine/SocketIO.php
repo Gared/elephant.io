@@ -85,6 +85,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
             'reuse_connection' => true,
             'transport' => static::TRANSPORT_POLLING,
             'transports' => null,
+            'binary_as_resource' => true,
         ], $this->getDefaultOptions());
 
         $this->options = Option::create(array_replace($this->defaults, $options));

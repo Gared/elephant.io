@@ -24,6 +24,7 @@ namespace ElephantIO\Engine;
  * @property string[] $transports Enabled transports
  * @property string $transport Initial transport
  * @property bool $persistent Enable or disable persistent connection
+ * @property bool $binary_as_resource Return received binary data as resource
  * @property int $max_payload Maximum allowable payload length
  * @property string $stream_factory A custom socket stream class name
  * @author Toha <tohenk@yahoo.com>
@@ -33,6 +34,6 @@ class Option extends Store
     protected function initialize()
     {
         $this->keys = ['auth', 'headers', 'reuse_connection', 'timeout', 'transports', 'transport',
-            'version', 'wait', 'persistent', '_max_payload', '_stream_factory'];
+            'version', 'wait', 'persistent', 'binary_as_resource', '_max_payload', '_stream_factory'];
     }
 }

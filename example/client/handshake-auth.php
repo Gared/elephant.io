@@ -28,10 +28,10 @@ $client = setup_client($namespace, $logger, [
 $data = [
     'message' => 'Hello!'
 ];
-echo sprintf("Sending message: %s\n", json_encode($data));
+echo sprintf("Sending message: %s\n", inspect($data));
 $client->emit($event, $data);
 if ($retval = $client->wait($event)) {
-    echo sprintf("Got a reply: %s\n", json_encode($retval->data));
+    echo sprintf("Got a reply: %s\n", $retval->inspect());
 }
 $client->disconnect();
 

@@ -170,11 +170,18 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
+* `binary_as_resource`
+
+  When client receives a binary data, by default it will be presented as `resource`.
+  Set to `false` to retain it as string instead. Be careful, when you read the resource
+  content, it is necessary to seek the stream to the begining using `fseek($handle, 0)`
+  first. 
+
 ## Methods
 
 Elephant.io client (`ElephantIO\Client`) provides the following api methods:
 
-* `initialize()` _deprecated_
+* ~~`initialize()`~~
 
    An alias to `connect()`.
 
@@ -185,7 +192,7 @@ Elephant.io client (`ElephantIO\Client`) provides the following api methods:
   `/` namespace and will trigger `ElephantIO\Exception\UnsuccessfulOperationException`
   upon unsuccessful attempts.
 
-* `close()` _deprecated_
+* ~~`close()`~~
 
    An alias to `disconnect()`.
 

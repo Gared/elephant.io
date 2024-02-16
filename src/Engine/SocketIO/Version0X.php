@@ -214,6 +214,9 @@ class Version0X extends SocketIO
                 if (is_array($value) && isset($value['type']) && isset($value['data'])) {
                     if ($value['type'] === 'Buffer') {
                         $value = implode(array_map('chr', $value['data']));
+                        if ($this->options->binary_as_resource) {
+                            $value = Util::toResource($value);
+                        }
                     }
                 }
                 if (is_array($value)) {
