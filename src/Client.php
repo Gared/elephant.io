@@ -62,6 +62,8 @@ class Client
      */
     public function initialize()
     {
+        trigger_error('initialize() will be removed soon, use connect() instead', E_USER_DEPRECATED);
+
         return $this->connect();
     }
 
@@ -93,6 +95,8 @@ class Client
      */
     public function close()
     {
+        trigger_error('close() will be removed soon, use disconnect() instead', E_USER_DEPRECATED);
+
         return $this->disconnect();
     }
 
