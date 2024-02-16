@@ -64,6 +64,7 @@ jobs:
         cd example/server && node index.js &
         sleep 5
         cd example/client
+        php -f ack.php
         php -f binary-event.php
         php -f error-handling.php
         php -f handshake-auth.php

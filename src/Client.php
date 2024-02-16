@@ -133,14 +133,15 @@ class Client
      * Emit an event to server.
      *
      * @param string $event
-     * @param array  $args
-     * @return int Number of bytes written
+     * @param array $args
+     * @param bool $ack
+     * @return int|\ElephantIO\Engine\Packet Number of bytes written or acknowledged packet
      */
-    public function emit($event, array $args)
+    public function emit($event, array $args, $ack = null)
     {
         $this->logger->info('Emitting a new event', ['event' => $event, 'args' => $args]);
 
-        return $this->engine->emit($event, $args);
+        return $this->engine->emit($event, $args, $ack);
     }
 
     /**
@@ -166,6 +167,22 @@ class Client
     public function drain($timeout = 0)
     {
         return $this->engine->drain($timeout);
+    }
+
+    /**
+     * Acknowledge a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
+     * @param array $args Acknowledgement data
+     * @return int Number of bytes written
+     */
+    public function ack($packet, array $args)
+    {
+        if (null !== $packet->ack) {
+            $this->logger->info(sprintf('Acknowledge a packet with id %s', $packet->ack), $args);
+
+            return $this->engine->ack($packet, $args);
+        }
     }
 
     /**

@@ -66,10 +66,11 @@ interface EngineInterface extends LoggerAwareInterface
      * Emit an event to server.
      *
      * @param string $event Event to emit
-     * @param array  $args  Arguments to send
-     * @return int Number of bytes written
+     * @param array $args Arguments to send
+     * @param bool $ack Set to true to request an ack
+     * @return int|\ElephantIO\Engine\Packet Number of bytes written or acknowledged packet
      */
-    public function emit($event, array $args);
+    public function emit($event, array $args, $ack = null);
 
     /**
      * Wait for event to arrive.
@@ -87,4 +88,13 @@ interface EngineInterface extends LoggerAwareInterface
      * @return \ElephantIO\Engine\Packet
      */
     public function drain($timeout = 0);
+
+    /**
+     * Acknowledge a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
+     * @param array $args Acknowledgement data
+     * @return int Number of bytes written
+     */
+    public function ack($packet, array $args);
 }

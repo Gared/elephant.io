@@ -19,6 +19,7 @@ namespace ElephantIO\Engine;
  * @property int $type Message type
  * @property string $nsp Namespace
  * @property string $event Event name
+ * @property int $ack Acknowledgement id
  * @property array $args Event arguments
  * @property mixed $data Packet data
  * @property int $count Binary attachment count
@@ -29,7 +30,23 @@ class Packet extends Store
 {
     protected function initialize()
     {
-        $this->keys = ['+proto', 'type', 'nsp', 'event', '!args', '!data', '_next', '_count'];
+        $this->keys = ['+proto', 'type', 'nsp', 'event', 'ack', '!args', '!data', '_next', '_count'];
+    }
+
+    /**
+     * Set arguments and data from first element of arguments.
+     *
+     * @param array $args
+     * @return \ElephantIO\Engine\Packet
+     */
+    public function setArgs($args)
+    {
+        if (is_array($args)) {
+            $this->args = $args;
+            $this->data = count($args) ? $args[0] : null;
+        }
+
+        return $this;
     }
 
     /**

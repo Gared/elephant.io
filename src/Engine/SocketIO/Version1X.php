@@ -139,12 +139,13 @@ class Version1X extends SocketIO
     }
 
     /** {@inheritDoc} */
-    protected function createEvent($event, $args)
+    protected function createEvent($event, $args, $ack = null)
     {
         $attachments = [];
         $this->getAttachments($args, $attachments);
         $type = count($attachments) ? static::PACKET_BINARY_EVENT : static::PACKET_EVENT;
-        $data = Util::concatNamespace($this->namespace, json_encode([$event, $args]));
+        $data = ($ack ? $this->getAckId(true) : '') . json_encode([$event, $args]);
+        $data = Util::concatNamespace($this->namespace, $data);
         if ($type === static::PACKET_BINARY_EVENT) {
             $data = sprintf('%d-%s', count($attachments), $data);
             $this->logger->debug(sprintf('Binary event arguments %s', Util::toStr($args)));
@@ -171,6 +172,26 @@ class Version1X extends SocketIO
         }
 
         return [static::PROTO_MESSAGE, $type . $data, $raws];
+    }
+
+    /** {@inheritDoc} */
+    protected function matchAck($packet)
+    {
+        if (($found = $packet->peek(static::PROTO_MESSAGE)) &&
+            in_array($found->type, [static::PACKET_ACK, static::PACKET_BINARY_ACK]) &&
+            $this->matchNamespace($found->nsp) &&
+            $found->ack == $this->getAckId()) {
+            return $found;
+        }
+    }
+
+    /** {@inheritDoc} */
+    protected function createAck($packet, $data)
+    {
+        $type = $packet->count ? static::PACKET_BINARY_ACK : static::PACKET_ACK;
+        $data = Util::concatNamespace($this->namespace, $packet->ack . json_encode($data));
+
+        return [static::PROTO_MESSAGE, $type . $data];
     }
 
     /** {@inheritDoc} */
@@ -271,14 +292,23 @@ class Version1X extends SocketIO
                     if ($packet->type === static::PACKET_BINARY_EVENT) {
                         $packet->count = (int) $seq->readUntil('-');
                     }
-                    $packet->nsp = $seq->readUntil(',[{', ['[', '{']);
+                    $openings = ['[', '{'];
+                    $stops = implode(array_merge([','], $openings));
+                    $packet->nsp = $seq->readUntil($stops, $openings);
+                    // check for ack
+                    if (!in_array(substr($seq->getData(), 0, 1), $openings)) {
+                        $packet->ack = $seq->readUntil(implode($openings), $openings);
+                    }
                     if (null !== ($data = json_decode($seq->getData(), true))) {
                         switch ($packet->type) {
                             case static::PACKET_EVENT:
                             case static::PACKET_BINARY_EVENT:
                                 $packet->event = array_shift($data);
-                                $packet->args = $data;
-                                $packet->data = count($data) ? $data[0] : null;
+                                $packet->setArgs($data);
+                                break;
+                            case static::PACKET_ACK:
+                            case static::PACKET_BINARY_ACK:
+                                $packet->setArgs($data);
                                 break;
                             default:
                                 $packet->data = $data;

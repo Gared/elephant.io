@@ -41,6 +41,9 @@ class Version0X extends SocketIO
 
     public const SEPARATOR = "\u{fffd}";
 
+    /** @var int */
+    private $ackId = null;
+
     /** {@inheritDoc} */
     public function getName()
     {
@@ -107,9 +110,27 @@ class Version0X extends SocketIO
     }
 
     /** {@inheritDoc} */
-    protected function createEvent($event, $args)
+    protected function createEvent($event, $args, $ack = null)
     {
-        return [static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)])];
+        $this->ackId = $ack ? $this->getAckId(true) : null;
+
+        return [static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)]), null];
+    }
+
+    /** {@inheritDoc} */
+    protected function matchAck($packet)
+    {
+        if (($found = $packet->peek(static::PROTO_ACK)) &&
+            $this->matchNamespace($found->nsp) &&
+            $found->ack == $this->getAckId()) {
+            return $found;
+        }
+    }
+
+    /** {@inheritDoc} */
+    protected function createAck($packet, $data)
+    {
+        return [static::PROTO_ACK, implode('+', [$packet->ack, json_encode($data)])];
     }
 
     /** {@inheritDoc} */
@@ -145,15 +166,19 @@ class Version0X extends SocketIO
         }
         $proto = (int) $proto;
         if ($proto >= static::PROTO_DISCONNECT && $proto <= static::PROTO_NOOP) {
-            $ack = $seq->readUntil(':');
+            $packet = $this->createPacket($proto);
+            if ($ack = $seq->readUntil(':')) {
+                if ('+' === substr($ack, -1)) {
+                    $ack = substr($ack, 0, -1);
+                }
+                $packet->ack = $ack;
+            }
             if (null === ($nsp = $seq->readUntil(':')) && !$seq->isEof()) {
                 $nsp = $seq->read(null);
             }
-            $packet = $this->createPacket($proto);
             $packet->nsp = $nsp;
             $packet->data = !$seq->isEof() ? $seq->getData() : null;
             switch ($packet->proto) {
-                case static::PROTO_MESSAGE:
                 case static::PROTO_JSON:
                     if ($packet->data) {
                         $packet->data = json_decode($packet->data, true);
@@ -162,11 +187,15 @@ class Version0X extends SocketIO
                 case static::PROTO_EVENT:
                     if ($packet->data) {
                         $data = json_decode($packet->data, true);
+                        $this->replaceBuffers($data['args']);
                         $packet->event = $data['name'];
-                        $packet->args = $data['args'];
-                        $this->replaceBuffers($packet->args);
-                        $packet->data = count($packet->args) ? $packet->args[0] : null;
+                        $packet->setArgs($data['args']);
                     }
+                    break;
+                case static::PROTO_ACK:
+                    list($ack, $data) = explode('+', $packet->data, 2);
+                    $packet->ack = $ack;
+                    $packet->setArgs(json_decode($data, true));
                     break;
             }
             $this->logger->info(sprintf('Got packet: %s', Util::truncate((string) $packet)));
@@ -237,7 +266,12 @@ class Version0X extends SocketIO
 
     protected function formatProtocol($proto, $data = null)
     {
-        return $proto . '::' . $this->namespace . ($data ? ':' . $data : '');
+        $items = [$proto, $proto === static::PROTO_EVENT && null !== $this->ackId ? $this->ackId . '+' : '', $this->namespace];
+        if (null !== $data) {
+            $items[] = $data;
+        }
+
+        return implode(':', $items);
     }
 
     public function buildQueryParameters($transport)

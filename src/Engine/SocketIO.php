@@ -62,6 +62,9 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /** @var \ElephantIO\Engine\Transport */
     private $_transport = null;
 
+    /** @var int Acknowledgement id */
+    private static $ack = null;
+
     public function __construct($url, array $options = [])
     {
         $this->url = $url;
@@ -245,9 +248,9 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     /** {@inheritDoc} */
-    public function emit($event, array $args)
+    public function emit($event, array $args, $ack = null)
     {
-        list($proto, $data, $raws) = $this->createEvent($event, $args);
+        list($proto, $data, $raws) = $this->createEvent($event, $args, $ack);
 
         $len = $this->send($proto, $data);
         if (is_array($raws)) {
@@ -256,25 +259,22 @@ abstract class SocketIO implements EngineInterface, SocketInterface
             }
         }
 
+        // wait for an ack
+        if ($ack) {
+            return $this->waitForPacket(function($packet) {
+                return $this->matchAck($packet);
+            });
+        }
+
         return $len;
     }
 
     /** {@inheritDoc} */
     public function wait($event, $timeout = 0)
     {
-        while (true) {
-            if ($packet = $this->drain($timeout)) {
-                if ($found = $this->matchEvent($packet, $event)) {
-                    return $found;
-                }
-                foreach ($packet->flatten() as $p) {
-                    $this->logger->info(sprintf('Ignoring packet: %s', Util::truncate((string) $p)));
-                }
-            }
-            if ($this->_transport()->timedout()) {
-                break;
-            }
-        }
+        return $this->waitForPacket(function($packet) use ($event) {
+            return $this->matchEvent($packet, $event);
+        }, $timeout);
     }
 
     /** {@inheritDoc} */
@@ -285,6 +285,14 @@ abstract class SocketIO implements EngineInterface, SocketInterface
 
             return $this->processData($data);
         }
+    }
+
+    /** {@inheritDoc} */
+    public function ack($packet, array $args)
+    {
+        list($proto, $data) = $this->createAck($packet, $args);
+
+        return $this->send($proto, $data);
     }
 
     /**
@@ -312,6 +320,30 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     protected function getDefaultOptions()
     {
         return [];
+    }
+
+    /**
+     * Wait for a matched packet to arrive.
+     *
+     * @param callable $matcher
+     * @param float $timeout
+     * @return \ElephantIO\Engine\Packet
+     */
+    protected function waitForPacket($matcher, $timeout = 0)
+    {
+        while (true) {
+            if ($packet = $this->drain($timeout)) {
+                if ($match = $matcher($packet)) {
+                    return $match;
+                }
+                foreach ($packet->flatten() as $p) {
+                    $this->logger->info(sprintf('Ignoring packet: %s', Util::truncate((string) $p)));
+                }
+            }
+            if ($this->_transport()->timedout()) {
+                break;
+            }
+        }
     }
 
     /**
@@ -343,9 +375,10 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      *
      * @param string $event
      * @param array $args
+     * @param bool $ack
      * @return array[int, string]
      */
-    protected function createEvent($event, $args)
+    protected function createEvent($event, $args, $ack = null)
     {
         throw new UnsupportedActionException($this, 'createEvent');
     }
@@ -360,6 +393,48 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     protected function matchEvent($packet, $event)
     {
         throw new UnsupportedActionException($this, 'matchEvent');
+    }
+
+    /**
+     * Create an acknowledgement.
+     *
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledfe
+     * @param array $data Acknowledgement data
+     * @return array[int, string]
+     */
+    protected function createAck($packet, $data)
+    {
+        throw new UnsupportedActionException($this, 'createAck');
+    }
+
+    /**
+     * Find matched ack from packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet
+     * @return \ElephantIO\Engine\Packet
+     */
+    protected function matchAck($packet)
+    {
+        throw new UnsupportedActionException($this, 'matchAck');
+    }
+
+    /**
+     * Get or generate acknowledgement id.
+     *
+     * @param bool $generate
+     * @return int
+     */
+    protected function getAckId($generate = null)
+    {
+        if ($generate) {
+            if (null === self::$ack) {
+                self::$ack = 0;
+            } else {
+                self::$ack++;
+            }
+        }
+
+        return self::$ack;
     }
 
     /**
