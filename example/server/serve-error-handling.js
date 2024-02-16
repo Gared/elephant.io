@@ -12,7 +12,7 @@ const util = require('util');
 const ExampleServer = require('./serve');
 
 /**
- * An example of polling server.
+ * An example of error handling server.
  */
 class ErrorHandlingServer extends ExampleServer {
 
