@@ -148,10 +148,10 @@ class Util
             } else {
                 $result = sprintf('[%s]', implode(',', $values));
             }
-        } else if (is_resource($value)) {
+        } elseif (is_resource($value)) {
             fseek($value, 0);
             $result = '<' . static::truncate(stream_get_contents($value), 32) . '>';
-        } else if (is_string($value)) {
+        } elseif (is_string($value)) {
             $result = '"' . $value . '"';
         } else {
             $result = var_export($value, true);

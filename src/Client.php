@@ -139,7 +139,7 @@ class Client
      */
     public function emit($event, array $args, $ack = null)
     {
-        $this->logger->info('Emitting a new event', ['event' => $event, 'args' => $args]);
+        $this->logger->info('Emitting a new event', ['event' => $event, 'args' => Util::toStr($args)]);
 
         return $this->engine->emit($event, $args, $ack);
     }
@@ -179,7 +179,7 @@ class Client
     public function ack($packet, array $args)
     {
         if (null !== $packet->ack) {
-            $this->logger->info(sprintf('Acknowledge a packet with id %s', $packet->ack), $args);
+            $this->logger->info(sprintf('Acknowledge a packet with id %s', $packet->ack), ['args' => Util::toStr($args)]);
 
             return $this->engine->ack($packet, $args);
         }

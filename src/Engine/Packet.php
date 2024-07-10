@@ -56,9 +56,7 @@ class Packet extends Store
      */
     public function flatten()
     {
-        $result = [];
-        $result[] = $this;
-
+        $result = [$this];
         foreach ((array) $this->next as $p) {
             $result = array_merge($result, $p->flatten());
         }

@@ -498,8 +498,11 @@ abstract class SocketIO implements EngineInterface, SocketInterface
             $this->stream = null;
         }
         if (!$this->stream) {
-            $this->stream = Stream::create($this->url, $this->context,
-                array_merge($this->options->toArray(), ['logger' => $this->logger]));
+            $this->stream = Stream::create(
+                $this->url,
+                $this->context,
+                array_merge($this->options->toArray(), ['logger' => $this->logger])
+            );
             if ($errors = $this->stream->getErrors()) {
                 throw new SocketException($errors[0], $errors[1]);
             }

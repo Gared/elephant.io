@@ -90,7 +90,7 @@ function truncate_data(&$data, $len = 100)
         foreach ($data as $k => &$v) {
             if (is_array($v)) {
                 truncate_data($v, $len);
-            } else if (is_string($v)) {
+            } elseif (is_string($v)) {
                 if (($n = strlen($v)) > $len) {
                     $n -= $len;
                     if ($len > 3) {

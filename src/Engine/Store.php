@@ -94,8 +94,11 @@ class Store
         }
 
         $keys = array_map([$this, 'getNormalizedKey'], $this->keys);
-        throw new InvalidArgumentException(sprintf('Unexpected key \'%s\' of [\'%s\']!',
-            $key, implode('\', \'', $keys)));
+        throw new InvalidArgumentException(sprintf(
+            'Unexpected key \'%s\' of [\'%s\']!',
+            $key,
+            implode('\', \'', $keys)
+        ));
     }
 
     /**

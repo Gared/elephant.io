@@ -382,6 +382,7 @@ class Version1X extends SocketIO
                 }
             }
         }
+
         return $array;
     }
 
@@ -539,7 +540,7 @@ class Version1X extends SocketIO
                     $this->logger->debug('Upgrade not confirmed');
                 }
             }
-    
+
             $this->logger->info('Websocket upgrade completed');
         } else {
             $this->logger->info('Upgrade failed, skipping websocket');
