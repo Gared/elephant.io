@@ -196,7 +196,7 @@ class Polling extends Transport
      */
     public function getStatus()
     {
-        if (count($headers = $this->getHeaders())) {
+        if (is_array($headers = $this->getHeaders()) && count($headers)) {
             return $headers[0];
         }
     }
