@@ -62,7 +62,7 @@ class ExampleServer {
      */
     log(...args) {
         if (args.length) {
-            const ns = this.namespace ? this.namespace : '/';
+            const ns = this.name ? this.name : this.constructor.name;
             if (typeof args[0] === 'string') {
                 args[0] = `${ns}: ${args[0]}`;
             } else {

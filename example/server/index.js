@@ -23,8 +23,9 @@ files.forEach(file => {
     if (file.startsWith('serve-')) {
         const Svr = require(path.join(dir, file));
         const s = new Svr(io);
+        s.name = file.substr(6, file.length - 9);
         if (s.nsp && s.handle()) {
-            console.log('Serve %s...', s.namespace ? s.namespace : '/');
+            console.log('Serving %s on %s', s.name, '/' + (s.namespace ? s.namespace : ''));
         }
     }
 });

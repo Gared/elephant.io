@@ -365,7 +365,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      */
     protected function matchNamespace($namespace)
     {
-        if ($namespace === $this->namespace || Util::normalizeNamespace($namespace) === $this->namespace) {
+        if ((string) $namespace === $this->namespace || Util::normalizeNamespace($namespace) === $this->namespace) {
             return true;
         }
     }

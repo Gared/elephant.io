@@ -60,7 +60,7 @@ class SequenceReader
      *
      * @param string $delimiter
      * @param array $noskips
-     * @return string
+     * @return null|string
      */
     public function readUntil($delimiter = ',', $noskips = [])
     {
@@ -80,11 +80,31 @@ class SequenceReader
     }
 
     /**
+     * Read data up to delimiter within boundaries.
+     *
+     * @param string $delimiter
+     * @param array $boundaries
+     * @return null|string
+     */
+    public function readWithin($delimiter = ',', $boundaries = [])
+    {
+        if (!$this->isEof()) {
+            list($p, $d) = $this->getPos($this->data, implode(array_merge([$delimiter], $boundaries)));
+            if (false !== $p && $d === $delimiter) {
+                $result = substr($this->data, 0, $p);
+                $this->data = substr($this->data, $p);
+
+                return $result;
+            }
+        }
+    }
+
+    /**
      * Get first position of delimiters.
      *
      * @param string $data
      * @param string $delimiter
-     * @return boolean|number
+     * @return array Index 0 indicate position found or false and index 1 indicate matched delimiter
      */
     protected function getPos($data, $delimiter)
     {

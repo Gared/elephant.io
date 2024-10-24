@@ -292,12 +292,12 @@ class Version1X extends SocketIO
                     if ($packet->type === static::PACKET_BINARY_EVENT) {
                         $packet->count = (int) $seq->readUntil('-');
                     }
+                    // nsp is delimited by ","
                     $openings = ['[', '{'];
-                    $stops = implode(array_merge([','], $openings));
-                    $packet->nsp = $seq->readUntil($stops, $openings);
+                    $packet->nsp = $seq->readWithin(',', $openings);
                     // check for ack
                     if (!in_array(substr($seq->getData(), 0, 1), $openings)) {
-                        $packet->ack = $seq->readUntil(implode($openings), $openings);
+                        $packet->ack = (int) $seq->readUntil(implode($openings), $openings);
                     }
                     if (null !== ($data = json_decode($seq->getData(), true))) {
                         switch ($packet->type) {
