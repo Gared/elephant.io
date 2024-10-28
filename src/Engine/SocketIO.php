@@ -113,10 +113,15 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /**
      * Get underlying socket stream.
      *
+     * @param bool $create True to create the stream
      * @return \ElephantIO\Stream\StreamInterface
      */
-    public function getStream()
+    public function getStream($create = false)
     {
+        if ($create) {
+            $this->createStream();
+        }
+
         return $this->stream;
     }
 
@@ -492,9 +497,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      */
     protected function createStream()
     {
-        if ($this->stream && !$this->options->reuse_connection) {
-            $this->logger->debug('Closing socket connection');
-            $this->stream->close();
+        if ($this->stream && !$this->stream->available()) {
             $this->stream = null;
         }
         if (!$this->stream) {

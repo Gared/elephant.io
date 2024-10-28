@@ -18,17 +18,21 @@ const port = 14000;
 const dir = __dirname;
 
 console.log('Please wait, running servers...');
-const files = fs.readdirSync(dir);
-files.forEach(file => {
-    if (file.startsWith('serve-')) {
+fs
+    .readdirSync(dir)
+    .filter(file => file.startsWith('serve-'))
+    .map(file => {
         const Svr = require(path.join(dir, file));
         const s = new Svr(io);
         s.name = file.substr(6, file.length - 9);
+        return s;
+    })
+    .sort((a, b) => a.ns.localeCompare(b.ns))
+    .forEach(s => {
         if (s.nsp && s.handle()) {
-            console.log('Serving %s on %s', s.name, '/' + (s.namespace ? s.namespace : ''));
+            console.log('Serving %s on %s', s.name, '/' + s.ns);
         }
-    }
-});
+    });
 
 server.listen(port, () => {
     console.log('Server listening at %d...', port);

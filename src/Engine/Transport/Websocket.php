@@ -34,6 +34,7 @@ class Websocket extends Transport
      */
     protected function readBytes($bytes, $timeout = 0)
     {
+        $stream = $this->sio->getStream();
         $data = '';
         $chunk = null;
         $start = microtime(true);
@@ -42,10 +43,10 @@ class Websocket extends Transport
                 $this->timedout = true;
                 break;
             }
-            if (!$this->sio->getStream()->readable()) {
+            if (!$stream->readable()) {
                 throw new RuntimeException('Stream disconnected');
             }
-            if (false === ($chunk = $this->sio->getStream()->read($bytes))) {
+            if (false === ($chunk = $stream->read($bytes))) {
                 break;
             }
             $bytes -= \strlen($chunk);
@@ -64,7 +65,8 @@ class Websocket extends Transport
      */
     protected function doRead($timeout = 0)
     {
-        if (!$this->sio->getStream() || !$this->sio->getStream()->readable()) {
+        $stream = $this->sio->getStream();
+        if (!$stream || !$stream->readable()) {
             return;
         }
 
@@ -144,11 +146,12 @@ class Websocket extends Transport
      */
     public function doWrite($data)
     {
-        if (!$this->sio->getStream()) {
+        $stream = $this->sio->getStream();
+        if (!$stream) {
             throw new RuntimeException('Stream not available!');
         }
 
-        $bytes = $this->sio->getStream()->write($data);
+        $bytes = $stream->write($data);
         if ($this->sio->getSession()) {
             $this->sio->getSession()->resetHeartbeat();
         }

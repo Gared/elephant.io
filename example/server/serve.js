@@ -71,6 +71,15 @@ class ExampleServer {
         }
         console.log.apply(this, args);
     }
+
+    /**
+     * Get namespace.
+     *
+     * @returns {string}
+     */
+    get ns() {
+        return this.namespace ? this.namespace : '';
+    }
 }
 
 module.exports = ExampleServer;

@@ -29,9 +29,10 @@ interface SocketInterface
     /**
      * Get socket stream.
      *
+     * @param bool $create True to create the stream
      * @return \ElephantIO\Stream\StreamInterface
      */
-    public function getStream();
+    public function getStream($create = false);
 
     /**
      * Get stream context.

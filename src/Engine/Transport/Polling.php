@@ -85,7 +85,8 @@ class Polling extends Transport
      */
     protected function request($uri, $headers = [], $options = [])
     {
-        if (!$this->sio->getStream()->available()) {
+        $stream = $this->sio->getStream(true);
+        if (!$stream->available()) {
             return;
         }
 
@@ -106,7 +107,7 @@ class Polling extends Transport
             }
         }
 
-        $headers = array_merge(['Host' => $this->sio->getStream()->getUrl()->getHost()], $headers);
+        $headers = array_merge(['Host' => $stream->getUrl()->getHost()], $headers);
         if (isset($this->sio->getOptions()->headers)) {
             $headers = array_merge($headers, $this->sio->getOptions()->headers);
         }
@@ -116,23 +117,24 @@ class Polling extends Transport
 
         $request = implode(StreamInterface::EOL, $request) . StreamInterface::EOL . StreamInterface::EOL . $payload;
 
-        $this->bytesWritten = $this->sio->getStream()->write($request);
+        $this->bytesWritten = $stream->write($request);
 
         $this->result = ['headers' => [], 'body' => null];
 
         // wait for response
         $header = true;
         $len = null;
+        $closed = null;
         $start = microtime(true);
         while (true) {
             if ($timeout > 0 && microtime(true) - $start >= $timeout) {
                 $this->timedout = true;
                 break;
             }
-            if (!$this->sio->getStream()->readable()) {
+            if (!$stream->readable()) {
                 break;
             }
-            if ($content = $this->sio->getStream()->read($header ? null : $len)) {
+            if ($content = $stream->read($header ? null : $len)) {
                 if ($content === StreamInterface::EOL && $header && count($this->result['headers'])) {
                     if ($skip_body) {
                         break;
@@ -150,6 +152,9 @@ class Polling extends Transport
                                 strtolower($transferEncoding) === 'chunked') {
                                 $this->chunked = true;
                             }
+                            if (($con = $this->getHeaderMatch('Connection', $content)) && strtolower($con) === 'close') {
+                                $closed = true;
+                            }
                         }
                     } else {
                         $this->result['body'] .= $content;
@@ -164,6 +169,10 @@ class Polling extends Transport
                 }
             }
             usleep($this->sio->getOptions()->wait);
+        }
+        if ($closed) {
+            $this->logger->debug('Connection closed by server');
+            $stream->close();
         }
 
         return count($this->result['headers']) ? true : false;
