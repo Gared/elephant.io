@@ -25,11 +25,6 @@ use ElephantIO\Util;
 class Polling extends Transport
 {
     /**
-     * @var bool
-     */
-    protected $chunked = null;
-
-    /**
      * @var array
      */
     protected $result = null;
@@ -46,9 +41,10 @@ class Polling extends Transport
      */
     protected function getDefaultHeaders()
     {
-        return [
-            'Connection' => $this->sio->getOptions()->reuse_connection ? 'keep-alive' : 'close',
-        ];
+        $headers = ['Connection' => $this->sio->getOptions()->reuse_connection ? 'keep-alive' : 'close'];
+        $this->addCookie($headers);
+
+        return $headers;
     }
 
     /**
@@ -69,11 +65,21 @@ class Polling extends Transport
             'Sec-WebSocket-Version' => '13',
             'Origin' => $this->sio->getContext()['headers']['Origin'] ?? '*',
         ];
-        if (!empty($this->sio->getCookies())) {
-            $headers['Cookie'] = implode('; ', $this->sio->getCookies());
-        }
+        $this->addCookie($headers);
 
         return $headers;
+    }
+
+    /**
+     * Add cookie to request headers.
+     *
+     * @param array $headers  Request headers
+     */
+    protected function addCookie(&$headers)
+    {
+        if (count($this->sio->getCookies())) {
+            $headers['Cookie'] = implode('; ', $this->sio->getCookies());
+        }
     }
 
     /**
@@ -127,6 +133,7 @@ class Polling extends Transport
         $len = null;
         $closed = null;
         $contentType = null;
+        $chunked = null;
         $start = microtime(true);
         while (true) {
             if ($timeout > 0 && microtime(true) - $start >= $timeout) {
@@ -157,10 +164,10 @@ class Polling extends Transport
                                     strtolower($key) === 'content-length') {
                                     $len = (int) $value;
                                 }
-                                if (null === $this->chunked &&
+                                if (null === $chunked &&
                                     strtolower($key) === 'transfer-encoding' &&
                                     strtolower($value) === 'chunked') {
-                                    $this->chunked = true;
+                                    $chunked = true;
                                 }
                                 if (null === $contentType &&
                                     strtolower($key) === 'content-type') {
@@ -184,7 +191,7 @@ class Polling extends Transport
                         }
                     } else {
                         $this->result['body'] .= $content;
-                        if ($this->chunked && null === $len && $content === '0' . StreamInterface::EOL) {
+                        if ($chunked && null === $len && $content === '0' . StreamInterface::EOL) {
                             $this->result['body'] = $this->decodeChunked($this->result['body']);
                             break;
                         }
