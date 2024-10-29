@@ -58,19 +58,6 @@ class Client
     /**
      * Connect to server.
      *
-     * @deprecated Use connect() instead
-     * @return \ElephantIO\Client
-     */
-    public function initialize()
-    {
-        trigger_error('initialize() will be removed soon, use connect() instead', E_USER_DEPRECATED);
-
-        return $this->connect();
-    }
-
-    /**
-     * Connect to server.
-     *
      * @return \ElephantIO\Client
      */
     public function connect()
@@ -86,19 +73,6 @@ class Client
         }
 
         return $this;
-    }
-
-    /**
-     * Disconnect from server.
-     *
-     * @deprecated Use disconnect() instead
-     * @return \ElephantIO\Client
-     */
-    public function close()
-    {
-        trigger_error('close() will be removed soon, use disconnect() instead', E_USER_DEPRECATED);
-
-        return $this->disconnect();
     }
 
     /**

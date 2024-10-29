@@ -181,20 +181,12 @@ authentication token, or providing stream context.
 
 Elephant.io client (`ElephantIO\Client`) provides the following api methods:
 
-* ~~`initialize()`~~
-
-   An alias to `connect()`.
-
 * `connect()`
 
   Connect to socket.io server. In case of server connection is unsuccessful, an exception
   `ElephantIO\Exception\SocketException` will be thrown. It also connects to default
   `/` namespace and will trigger `ElephantIO\Exception\UnsuccessfulOperationException`
   upon unsuccessful attempts.
-
-* ~~`close()`~~
-
-   An alias to `disconnect()`.
 
 * `disconnect()`
 
