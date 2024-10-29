@@ -296,8 +296,10 @@ class Version1X extends SocketIO
                     $openings = ['[', '{'];
                     $packet->nsp = $seq->readWithin(',', $openings);
                     // check for ack
-                    if (!in_array(substr($seq->getData(), 0, 1), $openings)) {
-                        $packet->ack = (int) $seq->readUntil(implode($openings), $openings);
+                    if (in_array($packet->type, [static::PACKET_EVENT, static::PACKET_BINARY_EVENT, static::PACKET_ACK, static::PACKET_BINARY_ACK])) {
+                        if (!in_array(substr($seq->getData(), 0, 1), $openings)) {
+                            $packet->ack = (int) $seq->readUntil(implode($openings), $openings);
+                        }
                     }
                     if (null !== ($data = json_decode($seq->getData(), true))) {
                         switch ($packet->type) {
