@@ -497,7 +497,7 @@ class Version1X extends SocketIO
                 $value /= 1000;
             }
         });
-        $this->storeSession($handshake, $transport->getHeaders());
+        $this->storeSession($handshake, $transport->getCookies());
 
         $this->logger->info(sprintf('Handshake finished with %s', (string) $this->session));
     }
@@ -558,6 +558,13 @@ class Version1X extends SocketIO
         $packet = $this->drain();
         if (true === ($result = $this->getConfirmedNamespace($packet))) {
             return $packet;
+        }
+        if (null === $packet) {
+            /** @var \ElephantIO\Engine\Transport\Polling $transport */
+            $transport = $this->_transport();
+            if (is_array($body = $transport->getBody()) && isset($body['message'])) {
+                $result = $body['message'];
+            }
         }
         if (is_string($result)) {
             throw new UnsuccessfulOperationException(sprintf('Unable to switch namespace: %s!', $result));

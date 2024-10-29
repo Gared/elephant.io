@@ -87,7 +87,7 @@ class Store
         if (in_array($key, $this->keys)) {
             return $key;
         }
-        foreach($this->flags as $flag) {
+        foreach ($this->flags as $flag) {
             if (in_array($flag . $key, $this->keys)) {
                 return $key;
             }

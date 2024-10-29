@@ -473,21 +473,12 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      * Store successful connection handshake as session.
      *
      * @param array $handshake
-     * @param array $headers
+     * @param array $cookies
      */
-    protected function storeSession($handshake, $headers = [])
+    protected function storeSession($handshake, $cookies = [])
     {
-        $cookies = [];
-        if (is_array($headers) && count($headers)) {
-            foreach ($headers as $header) {
-                $matches = null;
-                if (preg_match('/^Set-Cookie:\s*([^;]*)/i', $header, $matches)) {
-                    $cookies[] = $matches[1];
-                }
-            }
-        }
-        $this->cookies = $cookies;
         $this->session = Session::from($handshake);
+        $this->cookies = $cookies;
     }
 
     /**

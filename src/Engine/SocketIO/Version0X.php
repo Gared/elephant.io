@@ -324,7 +324,7 @@ class Version0X extends SocketIO
             'pingTimeout' => (int) $sess[2],
             'upgrades' => explode(',', $sess[3]),
         ];
-        $this->storeSession($handshake, $transport->getHeaders());
+        $this->storeSession($handshake, $transport->getCookies());
 
         $this->logger->info(sprintf('Handshake finished with %s', (string) $this->session));
     }
