@@ -29,7 +29,7 @@ class Version3X extends Version1X
     protected function getDefaultOptions()
     {
         return array_merge(parent::getDefaultOptions(), [
-            'version' => 4,
+            'version' => static::EIO_V4,
         ]);
     }
 }

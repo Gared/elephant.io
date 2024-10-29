@@ -60,7 +60,7 @@ class Version1X extends SocketIO
     protected function getDefaultOptions()
     {
         return [
-            'version' => 2,
+            'version' => static::EIO_V2,
             'max_payload' => 10e7,
         ];
     }
@@ -233,13 +233,13 @@ class Version1X extends SocketIO
         while (!$seq->isEof()) {
             $len = null;
             switch (true) {
-                case $this->options->version >= 4:
+                case $this->options->version >= static::EIO_V4:
                     $len = strlen($seq->getData());
                     break;
-                case $this->options->version >= 3:
+                case $this->options->version >= static::EIO_V3:
                     $len = (int) $seq->readUntil(':');
                     break;
-                case $this->options->version >= 2:
+                case $this->options->version >= static::EIO_V2:
                     $prefix = $seq->read();
                     if (ord($prefix) === 0) {
                         $len = 0;
@@ -393,7 +393,7 @@ class Version1X extends SocketIO
      */
     protected function getAuthPayload()
     {
-        if (!isset($this->options->auth) || !$this->options->auth || $this->options->version < 4) {
+        if (!isset($this->options->auth) || !$this->options->auth || $this->options->version < static::EIO_V4) {
             return '';
         }
         if (($authData = json_encode($this->options->auth)) === false) {
@@ -505,7 +505,7 @@ class Version1X extends SocketIO
     protected function doAfterHandshake()
     {
         // connect to namespace for protocol version 4 and later
-        if ($this->options->version < 4) {
+        if ($this->options->version < static::EIO_V4) {
             return;
         }
 

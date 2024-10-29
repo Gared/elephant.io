@@ -12,6 +12,7 @@
 
 namespace ElephantIO\Engine\Transport;
 
+use ElephantIO\Engine\SocketIO;
 use ElephantIO\Engine\Transport;
 use ElephantIO\Stream\StreamInterface;
 use ElephantIO\Util;
@@ -58,7 +59,7 @@ class Polling extends Transport
     protected function getUpgradeHeaders()
     {
         $hash = sha1(uniqid(mt_rand(), true), true);
-        if ($this->sio->getOptions()->version > 2) {
+        if ($this->sio->getOptions()->version > SocketIO::EIO_V2) {
             $hash = substr($hash, 0, 16);
         }
         $headers = [

@@ -29,6 +29,11 @@ abstract class SocketIO implements EngineInterface, SocketInterface
 {
     use LoggerAwareTrait;
 
+    public const EIO_V1 = 1;    // socket.io 0x
+    public const EIO_V2 = 2;    // socket.io 1x
+    public const EIO_V3 = 3;    // socket.io 2x
+    public const EIO_V4 = 4;    // socket.io 3x and newer
+
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 

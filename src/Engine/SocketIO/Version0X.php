@@ -54,7 +54,7 @@ class Version0X extends SocketIO
     protected function getDefaultOptions()
     {
         return [
-            'version' => 1,
+            'version' => static::EIO_V1,
         ];
     }
 
