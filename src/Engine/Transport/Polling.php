@@ -298,14 +298,14 @@ class Polling extends Transport
     }
 
     /** {@inheritDoc} */
-    public function send($data, $options = [])
+    public function send($data, $parameters = [])
     {
-        $_options = ['method' => 'POST', 'payload' => $data];
+        $options = ['method' => 'POST', 'payload' => $data];
         $headers = $this->getDefaultHeaders();
         $code = 200;
-        $transport = isset($options['transport']) ? $options['transport'] : $this->sio->getOptions()->transport;
+        $transport = isset($parameters['transport']) ? $parameters['transport'] : $this->sio->getOptions()->transport;
         $uri = $this->sio->buildQuery($this->sio->buildQueryParameters($transport));
-        $this->request($uri, $headers, $_options);
+        $this->request($uri, $headers, $options);
 
         if ($this->getStatusCode() === $code) {
             return $this->bytesWritten;
@@ -313,21 +313,21 @@ class Polling extends Transport
     }
 
     /** {@inheritDoc} */
-    public function recv($timeout = 0, $options = [])
+    public function recv($timeout = 0, $parameters = [])
     {
         $this->timedout = null;
-        $_options = [];
-        if (isset($options['upgrade']) && $options['upgrade']) {
+        $options = [];
+        if (isset($parameters['upgrade']) && $parameters['upgrade']) {
             $headers = $this->getUpgradeHeaders();
-            $_options['skip_body'] = true;
+            $options['skip_body'] = true;
             $code = 101;
         } else {
             $headers = $this->getDefaultHeaders();
             $code = 200;
         }
-        $transport = isset($options['transport']) ? $options['transport'] : $this->sio->getOptions()->transport;
+        $transport = isset($parameters['transport']) ? $parameters['transport'] : $this->sio->getOptions()->transport;
         $uri = $this->sio->buildQuery($this->sio->buildQueryParameters($transport));
-        $this->request($uri, $headers, $_options);
+        $this->request($uri, $headers, $options);
 
         if ($this->getStatusCode() === $code) {
             return null !== $this->getBody() ? $this->getBody() : '';

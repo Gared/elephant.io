@@ -51,19 +51,19 @@ abstract class Transport
      * Send data.
      *
      * @param string $data
-     * @param array $options
+     * @param array $parameters
      * @return int Number of byte written
      */
-    abstract public function send($data, $options = []);
+    abstract public function send($data, $parameters = []);
 
     /**
      * Receive data.
      *
      * @param int $timeout
-     * @param array $options
+     * @param array $parameters
      * @return string
      */
-    abstract public function recv($timeout = 0, $options = []);
+    abstract public function recv($timeout = 0, $parameters = []);
 
     /**
      * Is last operation timed out?

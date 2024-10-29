@@ -179,12 +179,12 @@ class Websocket extends Transport
     }
 
     /** {@inheritDoc} */
-    public function send($data, $options = [])
+    public function send($data, $parameters = [])
     {
         if ($data instanceof Encoder) {
             $payload = $data;
         } else {
-            $payload = $this->getPayload($data, isset($options['encoding']) ? $options['encoding'] : Encoder::OPCODE_TEXT);
+            $payload = $this->getPayload($data, isset($parameters['encoding']) ? $parameters['encoding'] : Encoder::OPCODE_TEXT);
         }
         if (count($fragments = $payload->encode()->getFragments()) > 1) {
             throw new RuntimeException(sprintf(
@@ -197,7 +197,7 @@ class Websocket extends Transport
     }
 
     /** {@inheritDoc} */
-    public function recv($timeout = 0, $options = [])
+    public function recv($timeout = 0, $parameters = [])
     {
         $this->timedout = null;
 
