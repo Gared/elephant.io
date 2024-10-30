@@ -26,10 +26,13 @@ class ErrorHandlingServer extends ExampleServer {
             socket
                 .on('disconnect', () => {
                     this.log('disconnected: %s', socket.id);
-                })
-                .onAny((event, ...$args) => {
-                    this.log('event %s: %s', event, util.inspect($args));
                 });
+            if (ExampleServer.version.MAJOR >= 3) {
+                socket
+                    .onAny((event, ...$args) => {
+                        this.log('event %s: %s', event, util.inspect($args));
+                    });
+            }
         });
         return true;
     }

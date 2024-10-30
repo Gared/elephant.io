@@ -10,9 +10,10 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Test\Payload;
+namespace ElephantIO\Test\Websocket;
 
-use ElephantIO\Payload\Encoder;
+use ElephantIO\Parser\Websocket\Encoder;
+use ElephantIO\Parser\Websocket\Payload;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
@@ -24,7 +25,7 @@ class EncoderTest extends TestCase
         $encoder = new Encoder('foo', Encoder::OPCODE_TEXT, null !== $maskKey);
 
         if (null !== $maskKey) {
-            $refl = new ReflectionProperty('ElephantIO\\Payload', 'maskKey');
+            $refl = new ReflectionProperty(Payload::class, 'maskKey');
             $refl->setAccessible(true);
             $refl->setValue($encoder, $maskKey);
         }
@@ -55,7 +56,7 @@ EOF;
         $encoder = new Encoder($this->fixEol($payload), Encoder::OPCODE_TEXT, null !== $maskKey);
 
         if (null !== $maskKey) {
-            $refl = new ReflectionProperty('ElephantIO\\Payload', 'maskKey');
+            $refl = new ReflectionProperty(Payload::class, 'maskKey');
             $refl->setAccessible(true);
             $refl->setValue($encoder, $maskKey);
         }

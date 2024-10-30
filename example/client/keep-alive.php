@@ -37,7 +37,7 @@ while (true) {
         }
         break;
     }
-    $client->drain(1.0);
+    $client->drain(1);
     echo '.';
 }
 $client->disconnect();

@@ -12,6 +12,7 @@
 
 namespace ElephantIO\Engine;
 
+use ArrayObject;
 use ElephantIO\Engine\Packet;
 use ElephantIO\Engine\Transport\Polling;
 use ElephantIO\Engine\Transport\Websocket;
@@ -88,7 +89,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
         }
 
         $this->defaults = array_merge([
-            'wait' => 50,
+            'wait' => 10,
             'timeout' => ini_get('default_socket_timeout'),
             'reuse_connection' => true,
             'transport' => static::TRANSPORT_POLLING,
@@ -225,6 +226,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
         } else {
             $this->doSkipUpgrade();
         }
+        $this->doConnected();
     }
 
     /** {@inheritDoc} */
@@ -292,6 +294,11 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     {
         if (null !== ($data = $this->_transport()->recv($timeout))) {
             $this->logger->debug(sprintf('Got data: %s', Util::truncate((string) $data)));
+            if ($data instanceof ArrayObject) {
+                $data = (array) $data;
+            } elseif (is_object($data)) {
+                $data = (string) $data;
+            }
 
             return $this->processData($data);
         }
@@ -319,6 +326,18 @@ abstract class SocketIO implements EngineInterface, SocketInterface
             $this->logger->debug(sprintf('Send data: %s', Util::truncate($formatted)));
 
             return $this->_transport()->send($formatted);
+        }
+    }
+
+    /**
+     * Send ping to server.
+     */
+    public function ping()
+    {
+        if ($this->session && $this->session->needsHeartbeat()) {
+            $this->logger->debug('Sending ping to server');
+            $this->doPing();
+            $this->session->resetHeartbeat();
         }
     }
 
@@ -637,6 +656,14 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     protected function doChangeNamespace()
+    {
+    }
+
+    protected function doConnected()
+    {
+    }
+
+    protected function doPing()
     {
     }
 

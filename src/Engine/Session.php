@@ -61,10 +61,12 @@ class Session extends Store
      */
     public function needsHeartbeat()
     {
-        if (0 < $this->timeouts['interval'] && $this->getTime() > ($this->timeouts['interval'] + $this->heartbeat - 5)) {
-            $this->resetHeartbeat();
-
-            return true;
+        if ($this->timeouts['interval'] > 0) {
+            $time = $this->getTime();
+            $heartbeat = $this->timeouts['interval'] + $this->heartbeat - 5;
+            if ($time > $heartbeat) {
+                return true;
+            }
         }
 
         return false;

@@ -26,7 +26,19 @@ require __DIR__ . '/../../vendor/autoload.php';
  */
 function client_version($version = null)
 {
-    static $client = Client::CLIENT_4X; // default client version
+    static $client = null;
+    if (null === $client && is_readable($package = __DIR__ . '/../server/package.json')) {
+        $info = json_decode(file_get_contents($package), true);
+        if (isset($info['dependencies']) && isset($info['dependencies']['socket.io'])) {
+            if (preg_match('/(?P<MAJOR>(\d+))\.(?P<MINOR>(\d+))\.(?P<PATCH>(\d+))/', $info['dependencies']['socket.io'], $matches)) {
+                $client = (int) $matches['MAJOR'];
+                echo sprintf("Server version detected: %s\n", $client);
+            }
+        }
+    }
+    if (null === $client) {
+        $client = Client::CLIENT_4X;
+    }
     if (null !== $version) {
         $client = $version;
     }

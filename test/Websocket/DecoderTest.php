@@ -10,9 +10,9 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Test\Payload;
+namespace ElephantIO\Test\Websocket;
 
-use ElephantIO\Payload\Decoder;
+use ElephantIO\Parser\Websocket\Decoder;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
@@ -104,7 +104,7 @@ EOF;
 
     private function assertPropSame($expected, $object, $property)
     {
-        $refl = new ReflectionProperty('ElephantIO\\Payload\\Decoder', $property);
+        $refl = new ReflectionProperty(Decoder::class, $property);
         $refl->setAccessible(true);
 
         $this->assertSame($expected, $refl->getValue($object));

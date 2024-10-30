@@ -10,14 +10,31 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Test\Payload;
+namespace ElephantIO\Test\Websocket;
 
-use ElephantIO\Payload\Decoder;
-use ElephantIO\Payload\Encoder;
+use ElephantIO\Parser\Websocket\Decoder;
+use ElephantIO\Parser\Websocket\Encoder;
+use ElephantIO\Parser\Websocket\Payload as BasePayload;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
+use ReflectionProperty;
 
 class PayloadTest extends TestCase
 {
+    public function testMaskData()
+    {
+        $payload = new Payload();
+
+        $refl = new ReflectionProperty(Payload::class, 'maskKey');
+        $refl->setAccessible(true);
+        $refl->setValue($payload, '?EV!');
+
+        $refl = new ReflectionMethod(Payload::class, 'maskData');
+        $refl->setAccessible(true);
+
+        $this->assertSame('592a39', bin2hex($refl->invoke($payload, 'foo')));
+    }
+
     protected function encodeDecode($sz, $filename)
     {
         $payload = file_get_contents($filename);
@@ -42,4 +59,9 @@ class PayloadTest extends TestCase
     {
         $this->encodeDecode('100-kilobytes', __DIR__.'/data/payload-100k.txt');
     }
+}
+
+/** Fixtures for these tests */
+class Payload extends BasePayload
+{
 }

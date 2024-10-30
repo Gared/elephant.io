@@ -203,7 +203,7 @@ Elephant.io client (`ElephantIO\Client`) provides the following api methods:
 
 * `wait($event, $timeout = 0)`
 
-  Wait an event to be received from server.
+  Wait an event to be received from server. To wait any event, pass `null` as event name.
 
 * `drain($timeout = 0)`
 

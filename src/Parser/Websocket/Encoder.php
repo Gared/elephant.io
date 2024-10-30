@@ -10,9 +10,7 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Payload;
-
-use ElephantIO\Payload;
+namespace ElephantIO\Parser\Websocket;
 
 /**
  * Encode the payload before sending it to a frame.
@@ -99,7 +97,7 @@ class Encoder extends Payload
     /**
      * Encode data.
      *
-     * @return \ElephantIO\Payload\Encoder
+     * @return \ElephantIO\Parser\Websocket\Encoder
      */
     public function encode()
     {

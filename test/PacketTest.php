@@ -25,6 +25,6 @@ class PacketTest extends TestCase
 
         $packet1->add($packet2);
         $this->assertEquals([$packet1, $packet2], $packet1->flatten(), 'Packet can be flattened');
-        $this->assertEquals($packet2, $packet1->peek(2), 'Packet can be picked by its protocol');
+        $this->assertEquals([$packet2], $packet1->peek(2), 'Packet can be picked by its protocol');
     }
 }

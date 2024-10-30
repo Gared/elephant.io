@@ -18,7 +18,7 @@ $event = 'test-binary';
 $logger = setup_logger();
 
 // create binary payload
-$filename = __DIR__ . '/../../test/Payload/data/payload-7d.txt';
+$filename = __DIR__ . '/../../test/Websocket/data/payload-7d.txt';
 $payload = fopen($filename, 'rb');
 $bindata = create_resource('1234567890');
 

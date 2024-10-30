@@ -20,26 +20,29 @@ class HandshakeAuthServer extends ExampleServer {
     }
 
     handle() {
-        if (!this.nsp.use) {
-            return;
-        }
-        this.nsp.use((socket, next) => {
-            const user = socket.handshake.auth.user;
-            const token = socket.handshake.auth.token;
-            if (user && token) {
-                this.log('auth token', token);
-                // do some security check with token
-                // for example:
-                if (user === 'random@example.com' && token === 'my-secret-token') {
-                    this.log('successfully authenticated');
-                    next();
+        if (typeof this.nsp.use === 'function') {
+            this.nsp.use((socket, next) => {
+                if (socket.handshake && socket.handshake.auth) {
+                    const user = socket.handshake.auth.user;
+                    const token = socket.handshake.auth.token;
+                    if (user && token) {
+                        this.log('auth token', token);
+                        // do some security check with token
+                        // for example:
+                        if (user === 'random@example.com' && token === 'my-secret-token') {
+                            this.log('successfully authenticated');
+                            next();
+                        } else {
+                            next(new Error('invalid credentials'));
+                        }
+                    } else {
+                        next(new Error('missing auth from the handshake'));
+                    }
                 } else {
-                    next(new Error('invalid credentials'));
+                    next();
                 }
-            } else {
-                next(new Error('missing auth from the handshake'));
-            }
-        });
+            });
+        }
         this.nsp.on('connection', socket => {
             this.log('connected: %s', socket.id);
             socket

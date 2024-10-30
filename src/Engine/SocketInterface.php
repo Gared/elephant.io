@@ -56,6 +56,11 @@ interface SocketInterface
     public function getSession();
 
     /**
+     * Send ping to server.
+     */
+    public function ping();
+
+    /**
      * Build query string parameters.
      *
      * @param string $transport

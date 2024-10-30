@@ -14,6 +14,8 @@ namespace ElephantIO\Engine\Transport;
 
 use ElephantIO\Engine\SocketIO;
 use ElephantIO\Engine\Transport;
+use ElephantIO\Parser\Polling\Decoder;
+use ElephantIO\Parser\Polling\Encoder;
 use ElephantIO\Stream\StreamInterface;
 use ElephantIO\Util;
 
@@ -24,6 +26,10 @@ use ElephantIO\Util;
  */
 class Polling extends Transport
 {
+    public const MIMETYPE_OCTET_STREAM = 'application/octet-stream';
+    public const MIMETYPE_JSON = 'application/json';
+    public const MIMETYPE_PLAIN_TEXT = 'text/plain; charset=UTF-8';
+
     /**
      * @var array
      */
@@ -104,11 +110,17 @@ class Polling extends Transport
 
         if ($payload) {
             $contentType = $headers['Content-Type'] ?? null;
-
             if (null === $contentType) {
-                $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
+                if (false !== strpos($payload, "\x00")) {
+                    $contentType = static::MIMETYPE_OCTET_STREAM;
+                } else {
+                    $contentType = static::MIMETYPE_PLAIN_TEXT;
+                    $payload = mb_convert_encoding($payload, 'UTF-8', 'ISO-8859-1');
+                }
+            }
+            if ($contentType) {
                 $headers = array_merge([
-                    'Content-Type' => 'text/plain; charset=UTF-8',
+                    'Content-Type' => $contentType,
                     'Content-Length' => strlen($payload),
                 ], $headers);
             }
@@ -204,12 +216,15 @@ class Polling extends Transport
             usleep($this->sio->getOptions()->wait);
         }
         // decode JSON if necessary
-        if ($this->result['body'] && $contentType === 'application/json') {
+        if ($this->result['body'] && $contentType === static::MIMETYPE_JSON) {
             $this->result['body'] = json_decode($this->result['body'], true);
         }
         if ($closed) {
             $this->logger->debug('Connection closed by server');
             $stream->close();
+        }
+        if ($this->result['status']) {
+            $this->setHeartbeat();
         }
 
         return count($this->result['headers']) ? true : false;
@@ -256,6 +271,23 @@ class Polling extends Transport
     }
 
     /**
+     * Get response header.
+     *
+     * @param string $name Header name
+     * @return string|array
+     */
+    public function getHeader($name)
+    {
+        if (is_array($headers = $this->getHeaders())) {
+            foreach ($headers as $k => $v) {
+                if (strtolower($name) === strtolower($k)) {
+                    return $v;
+                }
+            }
+        }
+    }
+
+    /**
      * Get cookies from response headers.
      *
      * @return array
@@ -263,14 +295,10 @@ class Polling extends Transport
     public function getCookies()
     {
         $cookies = [];
-        if (is_array($headers = $this->getHeaders())) {
-            foreach ($headers as $k => $v) {
-                if (strtolower($k) === 'set-cookie') {
-                    foreach (is_array($v) ? $v : [$v] as $cookie) {
-                        $cookie = explode(';', $cookie);
-                        $cookies[] = $cookie[0];
-                    }
-                }
+        if ($cookie = $this->getHeader('Set-Cookie')) {
+            foreach ((array) $cookie as $value) {
+                $value = explode(';', $value);
+                $cookies[] = $value[0];
             }
         }
 
@@ -300,6 +328,9 @@ class Polling extends Transport
     /** {@inheritDoc} */
     public function send($data, $parameters = [])
     {
+        if (!$data instanceof Encoder) {
+            $data = new Encoder($data, $this->sio->getOptions()->version);
+        }
         $options = ['method' => 'POST', 'payload' => $data];
         $headers = $this->getDefaultHeaders();
         $code = 200;
@@ -325,12 +356,14 @@ class Polling extends Transport
             $headers = $this->getDefaultHeaders();
             $code = 200;
         }
-        $transport = isset($parameters['transport']) ? $parameters['transport'] : $this->sio->getOptions()->transport;
+        $transport = isset($parameters['transport']) ? $parameters['transport'] :
+            $this->sio->getOptions()->transport;
         $uri = $this->sio->buildQuery($this->sio->buildQueryParameters($transport));
         $this->request($uri, $headers, $options);
 
         if ($this->getStatusCode() === $code) {
-            return null !== $this->getBody() ? $this->getBody() : '';
+            return new Decoder((string) $this->getBody(), $this->sio->getOptions()->version,
+                $this->getHeader('Content-Type') === static::MIMETYPE_OCTET_STREAM);
         }
     }
 }

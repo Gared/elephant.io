@@ -32,7 +32,7 @@ class ExampleServer {
     constructor(io) {
         this.io = io;
         this.initialize();
-        this.nsp = io.of(this.namespace ? this.namespace : '/');
+        this.nsp = io.of(this.namespace ? this.namespace : '');
     }
 
     /**
@@ -79,6 +79,29 @@ class ExampleServer {
      */
     get ns() {
         return this.namespace ? this.namespace : '';
+    }
+
+    /**
+     * Get socket.io version.
+     *
+     * @returns {object}
+     */
+    static get version() {
+        if (ExampleServer.ver === undefined) {
+            const fs = require('fs');
+            const path = require('path');
+            const info = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json')));
+            const vers = info.dependencies['socket.io'].match(/(?<MAJOR>(\d+))\.(?<MINOR>(\d+))\.(?<PATCH>(\d+))/);
+            if (vers) {
+                ExampleServer.ver = {
+                    MAJOR: parseInt(vers.MAJOR),
+                    MINOR: parseInt(vers.MINOR),
+                    PATCH: parseInt(vers.PATCH),
+                }
+            }
+        }
+
+        return ExampleServer.ver;
     }
 }
 

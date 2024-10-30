@@ -39,8 +39,6 @@ class Version0X extends SocketIO
     public const PROTO_ERROR = 7;
     public const PROTO_NOOP = 8;
 
-    public const SEPARATOR = "\u{fffd}";
-
     /** @var int */
     private $ackId = null;
 
@@ -63,25 +61,14 @@ class Version0X extends SocketIO
     {
         /** @var \ElephantIO\Engine\Packet $result */
         $result = null;
-        if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::SEPARATOR)) {
-            $packets = explode(static::SEPARATOR, trim($data, static::SEPARATOR));
-        } else {
-            $packets = [$data];
-        }
-        $more = count($packets) > 1;
+        $packets = (array) $data;
         while (count($packets)) {
-            // skip length line if multiple packets found
-            if ($more) {
-                array_shift($packets);
-            }
-            $data = array_shift($packets);
-            $this->logger->debug(sprintf('Processing data: %s', $data));
-            $packet = $this->decodePacket($data);
+            $packet = $this->decodePacket(array_shift($packets));
             switch ($packet->proto) {
                 case static::PROTO_DISCONNECT:
                     $this->logger->debug('Connection closed by server');
                     $this->reset();
-                    throw new RuntimeException('Connection closed by server!');
+                    break;
                 case static::PROTO_HEARTBEAT:
                     $this->logger->debug('Got HEARTBEAT');
                     $this->send(static::PROTO_HEARTBEAT);
@@ -104,8 +91,10 @@ class Version0X extends SocketIO
     /** {@inheritDoc} */
     protected function matchEvent($packet, $event)
     {
-        if (($found = $packet->peek(static::PROTO_EVENT)) && $this->matchNamespace($found->nsp) && $found->event === $event) {
-            return $found;
+        foreach ($packet->peek(static::PROTO_EVENT) as $found) {
+            if ($this->matchNamespace($found->nsp) && ($found->event === $event || null === $event)) {
+                return $found;
+            }
         }
     }
 
@@ -120,10 +109,10 @@ class Version0X extends SocketIO
     /** {@inheritDoc} */
     protected function matchAck($packet)
     {
-        if (($found = $packet->peek(static::PROTO_ACK)) &&
-            $this->matchNamespace($found->nsp) &&
-            $found->ack == $this->getAckId()) {
-            return $found;
+        foreach ($packet->peek(static::PROTO_ACK) as $found) {
+            if ($this->matchNamespace($found->nsp) && $found->ack == $this->getAckId()) {
+                return $found;
+            }
         }
     }
 
@@ -357,15 +346,23 @@ class Version0X extends SocketIO
         $this->send(static::PROTO_CONNECT);
 
         $packet = $this->drain();
-        if ($packet && $packet->proto === static::PROTO_CONNECT) {
+        if ($packet && ($packet = $packet->peekOne(static::PROTO_CONNECT))) {
             $this->logger->debug('Successfully connected');
         }
 
         return $packet;
     }
 
+    protected function doPing()
+    {
+        $this->send(static::PROTO_HEARTBEAT);
+    }
+
     protected function doClose()
     {
         $this->send(static::PROTO_DISCONNECT);
+        if ($this->transport === static::TRANSPORT_WEBSOCKET) {
+            $this->drain();
+        }
     }
 }

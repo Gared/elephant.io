@@ -100,6 +100,19 @@ class SequenceReader
     }
 
     /**
+     * Get first position of delimiter.
+     *
+     * @param string $delimiter
+     * @return false|int False if delimiter is not found otherwize the position found
+     */
+    public function getDelimited($delimiter)
+    {
+        list($pos, ) = $this->getPos($this->data, $delimiter);
+
+        return $pos;
+    }
+
+    /**
      * Get first position of delimiters.
      *
      * @param string $data

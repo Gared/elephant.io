@@ -10,7 +10,7 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO;
+namespace ElephantIO\Parser\Websocket;
 
 /**
  * Payload for sending data through the websocket.
@@ -67,7 +67,7 @@ abstract class Payload
      * Set maximum payload length.
      *
      * @param int $length
-     * @return \ElephantIO\Payload
+     * @return \ElephantIO\Parser\Websocket\Payload
      */
     public function setMaxPayload($length)
     {

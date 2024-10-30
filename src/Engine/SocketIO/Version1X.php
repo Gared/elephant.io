@@ -13,9 +13,11 @@
 namespace ElephantIO\Engine\SocketIO;
 
 use ElephantIO\Engine\SocketIO;
+use ElephantIO\Engine\Transport\Polling;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\Exception\UnsuccessfulOperationException;
-use ElephantIO\Payload\Encoder;
+use ElephantIO\Parser\Polling\Decoder as PollingDecoder;
+use ElephantIO\Parser\Websocket\Encoder as WebsocketEncoder;
 use ElephantIO\SequenceReader;
 use ElephantIO\Util;
 use ElephantIO\Yeast;
@@ -48,8 +50,6 @@ class Version1X extends SocketIO
     public const PACKET_BINARY_EVENT = 5;
     public const PACKET_BINARY_ACK = 6;
 
-    public const SEPARATOR = "\x1e";
-
     /** {@inheritDoc} */
     public function getName()
     {
@@ -71,14 +71,9 @@ class Version1X extends SocketIO
         // @see https://socket.io/docs/v4/engine-io-protocol/
         /** @var \ElephantIO\Engine\Packet $result */
         $result = null;
-        if ($this->transport === static::TRANSPORT_POLLING && false !== strpos($data, static::SEPARATOR)) {
-            $packets = explode(static::SEPARATOR, $data);
-        } else {
-            $packets = [$data];
-        }
+        $packets = (array) $data;
         while (count($packets)) {
-            $data = array_shift($packets);
-            $packet = $this->decodePacket($data);
+            $packet = $this->decodePacket(array_shift($packets));
             if ($packet->proto === static::PROTO_MESSAGE &&
                 $packet->type === static::PACKET_BINARY_EVENT) {
                 $packet->type = static::PACKET_EVENT;
@@ -86,12 +81,21 @@ class Version1X extends SocketIO
                     $bindata = null;
                     switch ($this->transport) {
                         case static::TRANSPORT_POLLING:
-                            $bindata = array_shift($packets);
-                            $prefix = substr($bindata, 0, 1);
-                            if ($prefix !== 'b') {
-                                throw new RuntimeException(sprintf('Unable to decode binary data with prefix "%s"!', $prefix));
+                            if ($this->options->version >= static::EIO_V4) {
+                                $bindata = array_shift($packets);
+                                $prefix = substr($bindata, 0, 1);
+                                if ($prefix !== 'b') {
+                                    throw new RuntimeException(sprintf('Unable to decode binary data with prefix "%s"!', $prefix));
+                                }
+                                $bindata = base64_decode(substr($bindata, 1));
+                            } else {
+                                if ($bindata = array_shift($packets)) {
+                                    if (ord($bindata[0]) !== static::PROTO_MESSAGE) {
+                                        throw new RuntimeException(sprintf('Invalid binary data at position %d!', $i));
+                                    }
+                                    $bindata = substr($bindata, 1);
+                                }
                             }
-                            $bindata = base64_decode(substr($bindata, 1));
                             break;
                         case static::TRANSPORT_WEBSOCKET:
                             $bindata = (string) $this->_transport()->recv();
@@ -107,7 +111,7 @@ class Version1X extends SocketIO
                 case static::PROTO_CLOSE:
                     $this->logger->debug('Connection closed by server');
                     $this->reset();
-                    throw new RuntimeException('Connection closed by server!');
+                    break;
                 case static::PROTO_PING:
                     $this->logger->debug('Got PING, sending PONG');
                     $this->send(static::PROTO_PONG);
@@ -133,8 +137,10 @@ class Version1X extends SocketIO
     /** {@inheritDoc} */
     protected function matchEvent($packet, $event)
     {
-        if (($found = $packet->peek(static::PROTO_MESSAGE)) && $this->matchNamespace($found->nsp) && $found->event === $event) {
-            return $found;
+        foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
+            if ($this->matchNamespace($found->nsp) && ($found->event === $event || null === $event)) {
+                return $found;
+            }
         }
     }
 
@@ -155,9 +161,16 @@ class Version1X extends SocketIO
         if (count($attachments)) {
             switch ($this->transport) {
                 case static::TRANSPORT_POLLING:
-                    foreach ($attachments as $attachment) {
-                        $data .= static::SEPARATOR;
-                        $data .= 'b' . base64_encode($attachment);
+                    if ($this->options->version >= static::EIO_V4) {
+                        foreach ($attachments as $attachment) {
+                            $data .= PollingDecoder::EIO_V4_SEPARATOR;
+                            $data .= 'b' . base64_encode($attachment);
+                        }
+                    } else {
+                        $raws = [];
+                        foreach ($attachments as $attachment) {
+                            $raws[] = 'b' . static::PROTO_MESSAGE . base64_encode($attachment);
+                        }
                     }
                     break;
                 case static::TRANSPORT_WEBSOCKET:
@@ -165,7 +178,10 @@ class Version1X extends SocketIO
                     /** @var \ElephantIO\Engine\Transport\Websocket $transport */
                     $transport = $this->_transport();
                     foreach ($attachments as $attachment) {
-                        $raws[] = $transport->getPayload($attachment, Encoder::OPCODE_BINARY);
+                        if ($this->options->version <= static::EIO_V3) {
+                            $attachment = pack('C', static::PROTO_MESSAGE) . $attachment;
+                        }
+                        $raws[] = $transport->getPayload($attachment, WebsocketEncoder::OPCODE_BINARY);
                     }
                     break;
             }
@@ -177,11 +193,11 @@ class Version1X extends SocketIO
     /** {@inheritDoc} */
     protected function matchAck($packet)
     {
-        if (($found = $packet->peek(static::PROTO_MESSAGE)) &&
-            in_array($found->type, [static::PACKET_ACK, static::PACKET_BINARY_ACK]) &&
-            $this->matchNamespace($found->nsp) &&
-            $found->ack == $this->getAckId()) {
-            return $found;
+        foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
+            if (in_array($found->type, [static::PACKET_ACK, static::PACKET_BINARY_ACK]) &&
+                $this->matchNamespace($found->nsp) && $found->ack == $this->getAckId()) {
+                return $found;
+            }
         }
     }
 
@@ -222,42 +238,15 @@ class Version1X extends SocketIO
     /**
      * Decode payload data.
      *
-     * @param string $data
+     * @param array $data
      * @return \ElephantIO\Engine\Packet
      */
     protected function decodeData($data)
     {
         /** @var \ElephantIO\Engine\Packet $result */
         $result = null;
-        $seq = new SequenceReader($data);
-        while (!$seq->isEof()) {
-            $len = null;
-            switch (true) {
-                case $this->options->version >= static::EIO_V4:
-                    $len = strlen($seq->getData());
-                    break;
-                case $this->options->version >= static::EIO_V3:
-                    $len = (int) $seq->readUntil(':');
-                    break;
-                case $this->options->version >= static::EIO_V2:
-                    $prefix = $seq->read();
-                    if (ord($prefix) === 0) {
-                        $len = 0;
-                        $sizes = $seq->readUntil("\xff");
-                        $n = strlen($sizes) - 1;
-                        for ($i = 0; $i <= $n; $i++) {
-                            $len += ord($sizes[$i]) * pow(10, $n - $i);
-                        }
-                    } else {
-                        throw new RuntimeException('Unsupported encoding detected!');
-                    }
-                    break;
-            }
-            if (null === $len) {
-                throw new RuntimeException('Data delimiter not found!');
-            }
-
-            $packet = $this->decodePacket($seq->read($len));
+        foreach ((array) $data as $line) {
+            $packet = $this->decodePacket($line);
             if (null === $result) {
                 $result = $packet;
             } else {
@@ -415,12 +404,14 @@ class Version1X extends SocketIO
      */
     protected function getConfirmedNamespace($packet)
     {
-        if ($packet && $packet->proto === static::PROTO_MESSAGE) {
-            if ($packet->type === static::PACKET_CONNECT) {
-                return true;
-            }
-            if ($packet->type === static::PACKET_ERROR) {
-                return isset($packet->data['message']) ? $packet->data['message'] : false;
+        if ($packet) {
+            foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
+                if ($found->type === static::PACKET_CONNECT) {
+                    return true;
+                }
+                if ($found->type === static::PACKET_ERROR) {
+                    return isset($found->data['message']) ? $found->data['message'] : false;
+                }
             }
         }
     }
@@ -484,11 +475,11 @@ class Version1X extends SocketIO
             $this->stream->upgrade();
             $packet = $this->drain();
         } else {
-            $packet = $this->decodeData($data);
+            $packet = $this->decodeData((array) $data);
         }
 
         $handshake = null;
-        if ($packet && ($packet = $packet->peek(static::PROTO_OPEN))) {
+        if ($packet && ($packet = $packet->peekOne(static::PROTO_OPEN))) {
             $handshake = $packet->data;
         }
         if (null === $handshake) {
@@ -535,8 +526,15 @@ class Version1X extends SocketIO
             $this->send(static::PROTO_UPGRADE);
 
             // ensure got packet connect on socket.io 1.x
-            if ($this->options->version === 2 && $packet = $this->drain()) {
-                if ($packet->proto === static::PROTO_MESSAGE && $packet->type === static::PACKET_CONNECT) {
+            if ($this->options->version === static::EIO_V2 && $packet = $this->drain()) {
+                $confirm = null;
+                foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
+                    if ($found->type === static::PACKET_CONNECT) {
+                        $confirm = $found;
+                        break;
+                    }
+                }
+                if ($confirm) {
                     $this->logger->debug('Upgrade successfully confirmed');
                 } else {
                     $this->logger->debug('Upgrade not confirmed');
@@ -564,14 +562,23 @@ class Version1X extends SocketIO
         if (null === $packet) {
             /** @var \ElephantIO\Engine\Transport\Polling $transport */
             $transport = $this->_transport();
-            if (is_array($body = $transport->getBody()) && isset($body['message'])) {
-                $result = $body['message'];
+            if ($transport instanceof Polling) {
+                if (is_array($body = $transport->getBody()) && isset($body['message'])) {
+                    $result = $body['message'];
+                }
             }
         }
         if (is_string($result)) {
             throw new UnsuccessfulOperationException(sprintf('Unable to switch namespace: %s!', $result));
         } else {
             throw new UnsuccessfulOperationException('Unable to switch namespace!');
+        }
+    }
+
+    protected function doPing()
+    {
+        if ($this->options->version <= static::EIO_V3) {
+            $this->send(static::PROTO_PING);
         }
     }
 

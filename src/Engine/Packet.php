@@ -68,15 +68,29 @@ class Packet extends Store
      * Peek packet with matched protocol.
      *
      * @param int $proto
-     * @return \ElephantIO\Engine\Packet
+     * @return \ElephantIO\Engine\Packet[]
      */
     public function peek($proto)
     {
+        $result = [];
         foreach ($this->flatten() as $p) {
             if ($p->proto === $proto) {
-                return $p;
+                $result[] = $p;
             }
         }
+
+        return $result;
+    }
+
+    /**
+     * Peek packet with matched protocol.
+     *
+     * @param int $proto
+     * @return \ElephantIO\Engine\Packet
+     */
+    public function peekOne($proto)
+    {
+        return count($packets = $this->peek($proto)) ? $packets[0] : null;
     }
 
     /**

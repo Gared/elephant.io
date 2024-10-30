@@ -73,9 +73,10 @@ interface EngineInterface extends LoggerAwareInterface
     public function emit($event, array $args, $ack = null);
 
     /**
-     * Wait for event to arrive.
+     * Wait for event to arrive. To wait for any event from server, simply pass null
+     * as event name.
      *
-     * @param string $event
+     * @param string $event Event name
      * @param float $timeout Timeout in seconds
      * @return \ElephantIO\Engine\Packet
      */

@@ -10,10 +10,9 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
-namespace ElephantIO\Payload;
+namespace ElephantIO\Parser\Websocket;
 
 use Countable;
-use ElephantIO\Payload;
 
 /**
  * Decode the payload from a received frame.
@@ -26,7 +25,6 @@ class Decoder extends Payload implements Countable
 {
     private $payload;
     private $data;
-
     private $length;
 
     /** @param string $payload Payload to decode */

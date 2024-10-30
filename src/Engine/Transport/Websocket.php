@@ -14,8 +14,8 @@ namespace ElephantIO\Engine\Transport;
 
 use DomainException;
 use ElephantIO\Engine\Transport;
-use ElephantIO\Payload\Decoder;
-use ElephantIO\Payload\Encoder;
+use ElephantIO\Parser\Websocket\Decoder;
+use ElephantIO\Parser\Websocket\Encoder;
 use RuntimeException;
 
 /**
@@ -51,6 +51,8 @@ class Websocket extends Transport
             }
             $bytes -= \strlen($chunk);
             $data .= $chunk;
+
+            $this->sio->ping();
         }
         if (false === $chunk) {
             throw new RuntimeException('Could not read from stream');
@@ -133,6 +135,7 @@ class Websocket extends Transport
         }
 
         $data .= $this->readBytes($length);
+        $this->setHeartbeat();
 
         // decode the payload
         return new Decoder($data);
@@ -152,9 +155,7 @@ class Websocket extends Transport
         }
 
         $bytes = $stream->write($data);
-        if ($this->sio->getSession()) {
-            $this->sio->getSession()->resetHeartbeat();
-        }
+        $this->setHeartbeat();
 
         // wait a little bit of time after this message was sent
         usleep((int) $this->sio->getOptions()->wait);
@@ -167,7 +168,7 @@ class Websocket extends Transport
      *
      * @param string $data
      * @param int $encoding
-     * @return \ElephantIO\Payload\Encoder
+     * @return \ElephantIO\Parser\Websocket\Encoder
      */
     public function getPayload($data, $encoding = Encoder::OPCODE_TEXT)
     {
@@ -181,12 +182,10 @@ class Websocket extends Transport
     /** {@inheritDoc} */
     public function send($data, $parameters = [])
     {
-        if ($data instanceof Encoder) {
-            $payload = $data;
-        } else {
-            $payload = $this->getPayload($data, isset($parameters['encoding']) ? $parameters['encoding'] : Encoder::OPCODE_TEXT);
+        if (!$data instanceof Encoder) {
+            $data = $this->getPayload($data, isset($parameters['encoding']) ? $parameters['encoding'] : Encoder::OPCODE_TEXT);
         }
-        if (count($fragments = $payload->encode()->getFragments()) > 1) {
+        if (count($fragments = $data->encode()->getFragments()) > 1) {
             throw new RuntimeException(sprintf(
                 'Payload is exceed the maximum allowed length of %d!',
                 $this->sio->getOptions()->max_payload

@@ -23,27 +23,26 @@ class HeaderAuthServer extends ExampleServer {
     }
 
     handle() {
-        if (!this.nsp.use) {
-            return;
-        }
-        this.nsp.use((socket, next) => {
-            const auth = socket.request.headers.authorization;
-            const user = socket.request.headers.user;
-            if (auth && user) {
-                const token = auth.replace('Bearer ', '');
-                this.log('auth token', token);
-                // do some security check with token
-                // ...
-                // store token and bind with specific socket id
-                if (!this.tokens[token] && !this.users[token]) {
-                    this.tokens[token] = socket.id;
-                    this.users[token] = user;
+        if (typeof this.nsp.use === 'function') {
+            this.nsp.use((socket, next) => {
+                const auth = socket.request.headers.authorization;
+                const user = socket.request.headers.user;
+                if (auth && user) {
+                    const token = auth.replace('Bearer ', '');
+                    this.log('auth token', token);
+                    // do some security check with token
+                    // ...
+                    // store token and bind with specific socket id
+                    if (!this.tokens[token] && !this.users[token]) {
+                        this.tokens[token] = socket.id;
+                        this.users[token] = user;
+                    }
+                    next();
+                } else{
+                    next(new Error('no authorization header'));
                 }
-                next();
-            } else{
-                next(new Error('no authorization header'));
-            }
-        });
+            });
+        }
         this.nsp.on('connection', socket => {
             let nb;
             this.log('connected: %s', socket.id);

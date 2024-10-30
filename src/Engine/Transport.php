@@ -74,4 +74,18 @@ abstract class Transport
     {
         return $this->timedout;
     }
+
+    /**
+     * Set last heartbeat.
+     *
+     * @return \ElephantIO\Engine\Transport
+     */
+    protected function setHeartbeat()
+    {
+        if ($this->sio->getSession()) {
+            $this->sio->getSession()->resetHeartbeat();
+        }
+
+        return $this;
+    }
 }

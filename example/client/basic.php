@@ -14,24 +14,17 @@ require __DIR__ . '/common.php';
 
 $logger = setup_logger();
 
-echo "Listening event...\n";
-
-$client = setup_client(null, $logger);
-while (true) {
-    if ($packet = $client->drain(1)) {
-        echo sprintf("Got event %s\n", $packet->event);
-        break;
+foreach ([
+    'basic event' => [],
+    'event without reuse connection' => ['reuse_connection' => false],
+] as $type => $options) {
+    echo sprintf("Listening %s...\n", $type);
+    $client = setup_client(null, $logger, $options);
+    while (true) {
+        if ($packet = $client->wait(null, 1)) {
+            echo sprintf("Got event %s\n", $packet->event);
+            break;
+        }
     }
+    $client->disconnect();
 }
-$client->disconnect();
-
-echo "Listening event without reuse connection...\n";
-
-$client = setup_client(null, $logger, ['reuse_connection' => false]);
-while (true) {
-    if ($packet = $client->drain(1)) {
-        echo sprintf("Got event %s\n", $packet->event);
-        break;
-    }
-}
-$client->disconnect();
