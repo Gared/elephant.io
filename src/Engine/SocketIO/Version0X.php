@@ -57,35 +57,23 @@ class Version0X extends SocketIO
     }
 
     /** {@inheritDoc} */
-    protected function processData($data)
+    protected function processPacket($data, &$more)
     {
-        /** @var \ElephantIO\Engine\Packet $result */
-        $result = null;
-        $packets = (array) $data;
-        while (count($packets)) {
-            $packet = $this->decodePacket(array_shift($packets));
-            switch ($packet->proto) {
-                case static::PROTO_DISCONNECT:
-                    $this->logger->debug('Connection closed by server');
-                    $this->reset();
-                    break;
-                case static::PROTO_HEARTBEAT:
-                    $this->logger->debug('Got HEARTBEAT');
-                    $this->send(static::PROTO_HEARTBEAT);
-                    break;
-                case static::PROTO_NOOP:
-                    break;
-                default:
-                    if (null === $result) {
-                        $result = $packet;
-                    } else {
-                        $result->add($packet);
-                    }
-                    break;
-            }
+        $packet = $this->decodePacket($data);
+        switch ($packet->proto) {
+            case static::PROTO_DISCONNECT:
+                $this->logger->debug('Connection closed by server');
+                $this->reset();
+                break;
+            case static::PROTO_HEARTBEAT:
+                $this->logger->debug('Got HEARTBEAT');
+                $this->send(static::PROTO_HEARTBEAT);
+                break;
+            case static::PROTO_NOOP:
+                break;
+            default:
+                return $packet;
         }
-
-        return $result;
     }
 
     /** {@inheritDoc} */

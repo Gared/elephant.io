@@ -376,14 +376,39 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     /**
-     * Process received data.
+     * Process one or more received data. If data contains more than one,
+     * the next packet will be passed as first packet next attribute.
      *
-     * @param string $data
+     * @param string|array $data Data to process
      * @return \ElephantIO\Engine\Packet
      */
     protected function processData($data)
     {
-        throw new UnsupportedActionException($this, 'processData');
+        /** @var \ElephantIO\Engine\Packet $result */
+        $result = null;
+        $packets = (array) $data;
+        while (count($packets)) {
+            if ($packet = $this->processPacket(array_shift($packets), $packets)) {
+                if (null === $result) {
+                    $result = $packet;
+                } else {
+                    $result->add($packet);
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Process raw packet data.
+     *
+     * @param string $data Packet data
+     * @param array $more Remaining packet data to be processed
+     * @return \ElephantIO\Engine\Packet
+     */
+    protected function processPacket($data, &$more)
+    {
     }
 
     /**

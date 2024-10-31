@@ -77,7 +77,7 @@ abstract class Payload
     }
 
     /**
-     * Mask a data according to the current mask key
+     * Mask a data according to the current mask key.
      *
      * @param string $data Data to mask
      * @return string Masked data
