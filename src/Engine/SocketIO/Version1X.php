@@ -408,16 +408,6 @@ class Version1X extends SocketIO
         return $parameters;
     }
 
-    public function buildQuery($query)
-    {
-        $url = $this->stream->getUrl()->getParsed();
-        if (isset($url['query']) && $url['query']) {
-            $query = array_replace($query, $url['query']);
-        }
-
-        return sprintf('/%s/?%s', trim($url['path'], '/'), http_build_query($query));
-    }
-
     protected function doHandshake()
     {
         if (null !== $this->session) {

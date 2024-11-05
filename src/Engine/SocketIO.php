@@ -38,7 +38,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
-    /** @var string[] Parsed url */
+    /** @var string Socket url */
     protected $url;
 
     /** @var string Normalized namespace without path prefix */
@@ -614,7 +614,13 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      */
     public function buildQuery($query)
     {
-        throw new UnsupportedActionException($this, 'buildQuery');
+        $path = null;
+        if (isset($query['path'])) {
+            $path = $query['path'];
+            unset($query['path']);
+        }
+
+        return $this->stream->getUrl()->getUri($path, $query);
     }
 
     /**

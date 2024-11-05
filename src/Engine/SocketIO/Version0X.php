@@ -263,18 +263,7 @@ class Version0X extends SocketIO
             $path[] = $this->session->id;
         }
 
-        return ['path' => $path];
-    }
-
-    public function buildQuery($query)
-    {
-        $url = $this->stream->getUrl()->getParsed();
-        $uri = sprintf('/%s/%s', trim($url['path'], '/'), implode('/', $query['path']));
-        if (isset($url['query']) && $params = http_build_query($url['query'])) {
-            $uri .= '/?' . $params;
-        }
-
-        return $uri;
+        return ['path' => implode('/', $path)];
     }
 
     protected function doHandshake()

@@ -56,6 +56,9 @@ abstract class Stream implements StreamInterface
         $this->options = $options;
         $this->logger = isset($options['logger']) && $options['logger'] ? $options['logger'] : new NullLogger();
         $this->url = new SocketUrl($url);
+        if (isset($options['sio_path'])) {
+            $this->url->setSioPath($options['sio_path']);
+        }
         $this->initialize();
     }
 

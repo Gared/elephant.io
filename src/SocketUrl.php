@@ -27,10 +27,20 @@ class SocketUrl
     protected $url = null;
 
     /**
-     * @var string[]
+     * @var array
      */
     protected $parsed = null;
 
+    /**
+     * @var string
+     */
+    protected $sio = 'socket.io';
+
+    /**
+     * Constructor.
+     *
+     * @param string $url The URL
+     */
     public function __construct($url)
     {
         $this->url = $url;
@@ -38,10 +48,9 @@ class SocketUrl
     }
 
     /**
-     * Parse an url into parts we may expect
+     * Parse an url into parts we may expect.
      *
      * @param string $url
-     *
      * @return string[] information on the given URL
      */
     protected function parse($url)
@@ -58,17 +67,37 @@ class SocketUrl
         if (!isset($result['port'])) {
             $result['port'] = 'https' === $result['scheme'] ? 443 : 80;
         }
-        if (!isset($result['path']) || $result['path'] == '/') {
-            $result['path'] = 'socket.io';
-        }
         if (!is_array($result['query'])) {
             $query = null;
             parse_str($result['query'], $query);
             $result['query'] = $query;
         }
-        $result['secured'] = 'https' === $result['scheme'];
+        $result['secure'] = 'https' === $result['scheme'];
 
         return $result;
+    }
+
+    /**
+     * Get socket.io path. If not set, default to socket.io.
+     *
+     * @return string
+     */
+    public function getSioPath()
+    {
+        return $this->sio;
+    }
+
+    /**
+     * Set socket.io path.
+     *
+     * @param string $sio socket.io path
+     * @return \ElephantIO\SocketUrl
+     */
+    public function setSioPath($sio)
+    {
+        $this->sio = $sio;
+
+        return $this;
     }
 
     /**
@@ -79,16 +108,6 @@ class SocketUrl
     public function getUrl()
     {
         return $this->url;
-    }
-
-    /**
-     * Get parsed URL.
-     *
-     *  @return mixed[]
-     */
-    public function getParsed()
-    {
-        return $this->parsed;
     }
 
     /**
@@ -108,6 +127,32 @@ class SocketUrl
      */
     public function getAddress()
     {
-        return sprintf('%s://%s', $this->parsed['secured'] ? 'ssl' : 'tcp', $this->getHost());
+        return sprintf('%s://%s', $this->parsed['secure'] ? 'ssl' : 'tcp', $this->getHost());
+    }
+
+    /**
+     * Get socket URI.
+     *
+     * @param string $path Path
+     * @param array $query Key-value query string
+     * @return string
+     */
+    public function getUri($path = null, $query = [])
+    {
+        $paths = [];
+        if (isset($this->parsed['path']) && $root = trim((string) $this->parsed['path'], '/')) {
+            $paths[] = $root;
+        }
+        $paths[] = $this->sio;
+        if ($path = trim((string) $path, '/')) {
+            $paths[] = $path;
+        }
+        $uri = sprintf('/%s/', implode('/', $paths));
+        $qs = array_replace($this->parsed['query'], $query);
+        if (count($qs)) {
+            $uri .= '?' . http_build_query($qs);
+        }
+
+        return $uri;
     }
 }

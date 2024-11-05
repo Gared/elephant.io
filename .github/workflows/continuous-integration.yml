@@ -73,3 +73,4 @@ jobs:
         php -f header-auth.php
         php -f keep-alive.php
         php -f polling.php
+        php -f custom-path.php

@@ -14,6 +14,7 @@ This examples bellow shows typical Elephant.io usage to connect to socket.io ser
 | Authentication using `Authorization` header | [serve-header-auth.js](./server/serve-header-auth.js)       | [header-auth.php](./client/header-auth.php)       | ⛔️ | ✅ | ✅ | ✅ | ✅ |
 | Keep alive                                  | [serve-keep-alive.js](./server/serve-keep-alive.js)         | [keep-alive.php](./client/keep-alive.php)         | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Polling                                     | [serve-polling.js](./server/serve-polling.js)               | [polling.php](./client/polling.php)               | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Custom path                                 | [serve2-custom-path.js](./server/serve2-custom-path.js)     | [custom-path.php](./client/custom-path.php)       | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## Run server part first
 

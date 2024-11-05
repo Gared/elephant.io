@@ -34,6 +34,8 @@ To use Elephant.io to communicate with socket.io server is described as follows.
 use ElephantIO\Client;
 
 $url = 'http://localhost:8080';
+// if socket server is served in non root path, adjust the url to include those path, e.g:
+// $url = 'http://localhost:8080/my'
 
 // if client option is omitted then it will use latest client available,
 // aka. version 4.x
@@ -135,6 +137,10 @@ authentication token, or providing stream context.
 
   Enable or disable existing connection reuse, by default the engine will reuse existing
   connection. To disable to reuse existing connection set `reuse_connection` to `false`.
+
+* `sio_path`
+
+  Used to customize socket.io path instead of `socket.io`.
 
 * `transports`
 

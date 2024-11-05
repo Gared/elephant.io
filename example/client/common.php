@@ -78,6 +78,10 @@ function setup_client($namespace, $logger = null, $options = [])
         $url = $options['url'];
         unset($options['url']);
     }
+    if (isset($options['path'])) {
+        $url .= '/' . $options['path'];
+        unset($options['path']);
+    }
 
     $logger = $logger ?? setup_logger();
     $client = Client::create($url, array_merge(['client' => client_version(), 'logger' => $logger], $options));
