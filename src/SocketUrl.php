@@ -148,7 +148,7 @@ class SocketUrl
             $paths[] = $path;
         }
         $uri = sprintf('/%s/', implode('/', $paths));
-        $qs = array_replace($this->parsed['query'], $query);
+        $qs = array_merge($this->parsed['query'], $query);
         if (count($qs)) {
             $uri .= '?' . http_build_query($qs);
         }
