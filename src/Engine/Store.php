@@ -23,6 +23,10 @@ use InvalidArgumentException;
  */
 class Store
 {
+    public const IDENTITY = '+';
+    public const PRIV = '_';
+    public const EXCLUSIVE = '!';
+
     /**
      * Store keys, a key can be prefixed with flag:
      * - `+` to indicate an identifier,
@@ -32,6 +36,13 @@ class Store
      * @var string[]
      */
     protected $keys = [];
+
+    /**
+     * Normalized keys and flags.
+     *
+     * @var mixed[]
+     */
+    protected $nkeys = [];
 
     /**
      * Store values.
@@ -45,7 +56,7 @@ class Store
      *
      * @var string[]
      */
-    protected $flags = ['+', '_', '!'];
+    protected $flags = [self::IDENTITY, self::PRIV, self::EXCLUSIVE];
 
     /**
      * Values mapping.
@@ -54,9 +65,17 @@ class Store
      */
     protected $maps = [];
 
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
         $this->initialize();
+        foreach ($this->keys as $k) {
+            $key = $this->getNormalizedKey($k);
+            $flag = in_array($f = substr($k, 0, 1), $this->flags) ? $f : null;
+            $this->nkeys[$key] = $flag; 
+        }
     }
 
     protected function initialize()
@@ -84,20 +103,14 @@ class Store
      */
     protected function getKey($key)
     {
-        if (in_array($key, $this->keys)) {
+        if (in_array($key, array_keys($this->nkeys))) {
             return $key;
         }
-        foreach ($this->flags as $flag) {
-            if (in_array($flag . $key, $this->keys)) {
-                return $key;
-            }
-        }
 
-        $keys = array_map([$this, 'getNormalizedKey'], $this->keys);
         throw new InvalidArgumentException(sprintf(
-            'Unexpected key \'%s\' of [\'%s\']!',
+            'Unexpected key %s, they are %s!',
             $key,
-            implode('\', \'', $keys)
+            implode(', ', array_keys($this->nkeys))
         ));
     }
 
@@ -145,8 +158,7 @@ class Store
     public function toArray()
     {
         $result = [];
-        foreach ($this->keys as $key) {
-            $key = $this->getNormalizedKey($key);
+        foreach (array_keys($this->nkeys) as $key) {
             if (isset($this->values[$key])) {
                 $result[$key] = $this->$key;
             }
@@ -163,8 +175,10 @@ class Store
      */
     public function fromArray($array)
     {
-        foreach ($array as $k => $v) {
-            $this->$k = $v;
+        foreach (array_keys($this->nkeys) as $key) {
+            if (isset($array[$key])) {
+                $this->$key = $array[$key];
+            }
         }
 
         return $this;
@@ -214,21 +228,19 @@ class Store
         $title = null;
         $items = [];
         $xclusive = null;
-        foreach ($this->keys as $key) {
-            $flag = substr($key, 0, 1);
-            $key = $this->getNormalizedKey($key);
+        foreach ($this->nkeys as $key => $flag) {
             switch ($flag) {
-                case '_':
+                case static::PRIV:
                     break;
-                case '+':
+                case static::IDENTITY:
                     $title = $this->getMappedValue($key, $this->$key);
                     break;
                 default:
                     if (isset($this->values[$key])) {
                         $value = $this->getMappedValue($key, $this->$key);
-                        if (null !== $value && ($flag !== '!' || null === $xclusive)) {
+                        if (null !== $value && ($flag !== static::EXCLUSIVE || null === $xclusive)) {
                             $items[$key] = $value;
-                            if ($flag === '!') {
+                            if ($flag === static::EXCLUSIVE) {
                                 $xclusive = true;
                             }
                         }
