@@ -12,8 +12,8 @@
 
 namespace ElephantIO\Stream;
 
-use RuntimeException;
 use ElephantIO\Util;
+use RuntimeException;
 
 /**
  * Basic stream to connect to the socket server which behave as an HTTP client.

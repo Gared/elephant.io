@@ -19,18 +19,10 @@ namespace ElephantIO\Engine\SocketIO;
  */
 class Version4X extends Version1X
 {
-    /** {@inheritDoc} */
-    public function getName()
+    protected function initialize(&$options)
     {
-        return 'SocketIO Version 4.X';
-    }
-
-    /** {@inheritDoc} */
-    protected function getDefaultOptions()
-    {
-        return array_merge(parent::getDefaultOptions(), [
-            'version' => static::EIO_V4,
-            'max_payload' => 1e6,
-        ]);
+        parent::initialize($options);
+        $this->name = 'SocketIO Version 4.X';
+        $this->setDefaults(['version' => static::EIO_V4, 'max_payload' => 1e6]);
     }
 }

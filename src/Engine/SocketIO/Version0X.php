@@ -16,8 +16,6 @@ use ElephantIO\Engine\SocketIO;
 use ElephantIO\Exception\ServerConnectionFailureException;
 use ElephantIO\SequenceReader;
 use ElephantIO\Util;
-use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * Implements the dialog with socket.io server 0.x.
@@ -42,38 +40,24 @@ class Version0X extends SocketIO
     /** @var int */
     private $ackId = null;
 
-    /** {@inheritDoc} */
-    public function getName()
+    protected function initialize(&$options)
     {
-        return 'SocketIO Version 0.X';
-    }
-
-    /** {@inheritDoc} */
-    protected function getDefaultOptions()
-    {
-        return [
-            'version' => static::EIO_V1,
+        $this->name = 'SocketIO Version 0.X';
+        $this->protoDelimiter = ':';
+        $this->packetMaps = [
+            'proto' => [
+                static::PROTO_DISCONNECT => 'disconnect',
+                static::PROTO_CONNECT => 'connect',
+                static::PROTO_HEARTBEAT => 'heartbeat',
+                static::PROTO_MESSAGE => 'message',
+                static::PROTO_JSON => 'json',
+                static::PROTO_EVENT => 'event',
+                static::PROTO_ACK => 'ack',
+                static::PROTO_ERROR => 'error',
+                static::PROTO_NOOP => 'noop',
+            ]
         ];
-    }
-
-    /** {@inheritDoc} */
-    protected function processPacket($data, &$more)
-    {
-        $packet = $this->decodePacket($data);
-        switch ($packet->proto) {
-            case static::PROTO_DISCONNECT:
-                $this->logger->debug('Connection closed by server');
-                $this->reset();
-                break;
-            case static::PROTO_HEARTBEAT:
-                $this->logger->debug('Got HEARTBEAT');
-                $this->send(static::PROTO_HEARTBEAT);
-                break;
-            case static::PROTO_NOOP:
-                break;
-            default:
-                return $packet;
-        }
+        $this->setDefaults(['version' => static::EIO_V1]);
     }
 
     /** {@inheritDoc} */
@@ -111,46 +95,23 @@ class Version0X extends SocketIO
     }
 
     /** {@inheritDoc} */
-    protected function getPacketMaps()
-    {
-        return [
-            'proto' => [
-                static::PROTO_DISCONNECT => 'disconnect',
-                static::PROTO_CONNECT => 'connect',
-                static::PROTO_HEARTBEAT => 'heartbeat',
-                static::PROTO_MESSAGE => 'message',
-                static::PROTO_JSON => 'json',
-                static::PROTO_EVENT => 'event',
-                static::PROTO_ACK => 'ack',
-                static::PROTO_ERROR => 'error',
-                static::PROTO_NOOP => 'noop',
-            ]
-        ];
-    }
-
-    /**
-     * Decode a packet.
-     *
-     * @param string $data
-     * @return \ElephantIO\Engine\Packet
-     */
     protected function decodePacket($data)
     {
         $seq = new SequenceReader($data);
-        $proto = $seq->readUntil(':');
+        $proto = $seq->readUntil($this->protoDelimiter);
         if (null === $proto && is_numeric($seq->getData())) {
             $proto = $seq->getData();
         }
         $proto = (int) $proto;
-        if ($proto >= static::PROTO_DISCONNECT && $proto <= static::PROTO_NOOP) {
+        if ($this->isProtocol($proto)) {
             $packet = $this->createPacket($proto);
-            if ($ack = $seq->readUntil(':')) {
+            if ($ack = $seq->readUntil($this->protoDelimiter)) {
                 if ('+' === substr($ack, -1)) {
                     $ack = substr($ack, 0, -1);
                 }
                 $packet->ack = $ack;
             }
-            if (null === ($nsp = $seq->readUntil(':')) && !$seq->isEof()) {
+            if (null === ($nsp = $seq->readUntil($this->protoDelimiter)) && !$seq->isEof()) {
                 $nsp = $seq->read(null);
             }
             $packet->nsp = $nsp;
@@ -179,6 +140,27 @@ class Version0X extends SocketIO
 
             return $packet;
         }
+    }
+
+    /** {@inheritDoc} */
+    protected function consumePacket($packet)
+    {
+        switch ($packet->proto) {
+            case static::PROTO_DISCONNECT:
+                $this->logger->debug('Connection closed by server');
+                $this->reset();
+                break;
+            case static::PROTO_HEARTBEAT:
+                $this->logger->debug('Got HEARTBEAT');
+                $this->send(static::PROTO_HEARTBEAT);
+                break;
+            case static::PROTO_NOOP:
+                break;
+            default:
+                return false;
+        }
+
+        return true;
     }
 
     /**
@@ -232,23 +214,14 @@ class Version0X extends SocketIO
         }
     }
 
-    protected function isProtocol($proto)
-    {
-        if ($proto < static::PROTO_DISCONNECT || $proto > static::PROTO_NOOP) {
-            throw new InvalidArgumentException('Wrong protocol type to sent to server');
-        }
-
-        return true;
-    }
-
-    protected function formatProtocol($proto, $data = null)
+    protected function buildProtocol($proto, $data = null)
     {
         $items = [$proto, $proto === static::PROTO_EVENT && null !== $this->ackId ? $this->ackId . '+' : '', $this->namespace];
         if (null !== $data) {
             $items[] = $data;
         }
 
-        return implode(':', $items);
+        return $items;
     }
 
     public function buildQueryParameters($transport)
@@ -283,7 +256,7 @@ class Version0X extends SocketIO
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
-        $sess = explode(':', $data);
+        $sess = explode($this->protoDelimiter, $data);
         $handshake = [
             'sid' => $sess[0],
             'pingInterval' => (int) $sess[1],

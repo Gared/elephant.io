@@ -71,22 +71,7 @@ $client->disconnect();
 Elephant.io accepts options to configure the internal engine such as passing headers, providing additional
 authentication token, or providing stream context.
 
-* `headers`
-
-  An array of key-value pair to be sent as request headers. For example, pass a bearer token to the server.
-
-  ```php
-  <?php
-
-  $options = [
-      'headers' => [
-          'Authorization' => 'Bearer MYTOKEN',
-      ]
-  ];
-  $client = Client::create($url, $options);
-  ```
-
-* `auth`
+* `auth` _(socket.io 3+)_
 
   Specify an array to be passed as handshake. The data to be passed depends on the server implementation.
 
@@ -112,9 +97,17 @@ authentication token, or providing stream context.
   });
   ```
 
+* `binary_as_resource`
+
+  When client receives a binary data, by default it will be presented as `resource`.
+  Set to `false` to retain it as string instead. Be careful, when you read the resource
+  content, it is necessary to seek the stream to the begining using `fseek($handle, 0)`
+  first. 
+
 * `context`
 
-  A [stream context](https://www.php.net/manual/en/function.stream-context-create.php) options for the socket stream.
+  A [stream context](https://www.php.net/manual/en/context.php) options for the socket stream
+  for http or ssl.
 
   ```php
   <?php
@@ -128,6 +121,21 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
+* `headers` _(socket.io 1+)_
+
+  An array of key-value pair to be sent as request headers. For example, pass a bearer token to the server.
+
+  ```php
+  <?php
+
+  $options = [
+      'headers' => [
+          'Authorization' => 'Bearer MYTOKEN',
+      ]
+  ];
+  $client = Client::create($url, $options);
+  ```
+
 * `persistent`
 
   The socket connection by default will be using a persistent connection. If you prefer for some
@@ -136,21 +144,19 @@ authentication token, or providing stream context.
 * `reuse_connection`
 
   Enable or disable existing connection reuse, by default the engine will reuse existing
-  connection. To disable to reuse existing connection set `reuse_connection` to `false`.
+  connection. This option determines the `Connection` header to be sent to the server, if enabled
+  then the connection will be `keep-alive` otherwise `close`.
+  
+  To disable to reuse existing connection set `reuse_connection` to `false`.
 
 * `sio_path`
 
   Used to customize socket.io path instead of `socket.io`.
 
-* `transports`
-
-  An array of enabled transport. Set to `null` or combination of `polling` or `websocket` to enable
-  specific transport.
-
 * `transport`
 
   Initial socket transport used to connect to server, either `polling` or `websocket` is supported.
-  The default transport used is `polling` and it will be upgraded to `websocket` if the server offer
+  The default transport used is `polling` and it will be upgraded to `websocket` if the server offers
   to upgrade and `transports` option does not exclude `websocket`.
 
   To connect to server with `polling` only transport:
@@ -176,12 +182,10 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
-* `binary_as_resource`
+* `transports`
 
-  When client receives a binary data, by default it will be presented as `resource`.
-  Set to `false` to retain it as string instead. Be careful, when you read the resource
-  content, it is necessary to seek the stream to the begining using `fseek($handle, 0)`
-  first. 
+  An array of enabled transport. Set to `null` to enable all transports or combination of
+  `polling` and `websocket` to enable specific transport.
 
 ## Methods
 

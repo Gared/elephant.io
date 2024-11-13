@@ -106,9 +106,9 @@ class Client
     /**
      * Emit an event to server.
      *
-     * @param string $event
-     * @param array $args
-     * @param bool $ack
+     * @param string $event Event name
+     * @param array $args Event arguments
+     * @param bool $ack Set to true to request acknowledgement
      * @return int|\ElephantIO\Engine\Packet Number of bytes written or acknowledged packet
      */
     public function emit($event, array $args, $ack = null)
@@ -119,9 +119,10 @@ class Client
     }
 
     /**
-     * Wait an event arrived from server.
+     * Wait an event arrived from server. To wait for any event from server, simply pass null
+     * as event name.
      *
-     * @param string $event
+     * @param string $event Event name
      * @param float $timeout Timeout in seconds
      * @return \ElephantIO\Engine\Packet
      */
@@ -172,9 +173,9 @@ class Client
     /**
      * Create socket.io engine.
      *
-     * @param int $version
-     * @param string $url
-     * @param array $options
+     * @param int $version Client version
+     * @param string $url Socket url
+     * @param array $options Engine options
      * @throws \InvalidArgumentException
      * @return \ElephantIO\Engine\SocketIO
      */
@@ -205,8 +206,8 @@ class Client
      *
      * Options not listed above will be passed to engine.
      *
-     * @param string $url
-     * @param array $options
+     * @param string $url Socket url
+     * @param array $options Engine options
      * @throws \InvalidArgumentException
      * @return \ElephantIO\Client
      */

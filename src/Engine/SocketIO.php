@@ -38,6 +38,9 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     public const TRANSPORT_POLLING = 'polling';
     public const TRANSPORT_WEBSOCKET = 'websocket';
 
+    /** @var string Engine name */
+    protected $name = 'SocketIO';
+
     /** @var string Socket url */
     protected $url;
 
@@ -65,12 +68,27 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /** @var mixed[] Array of default options for the engine */
     protected $defaults;
 
+    /** @var mixed[] Array of packet maps */
+    protected $packetMaps = [];
+
+    /** @var int[] Array of min and max of protocol */
+    protected $proto = [0, 0];
+
+    /** @var string Protocol delimiter */
+    protected $protoDelimiter = '';
+
     /** @var \ElephantIO\Engine\Transport */
     private $_transport = null;
 
     /** @var int Acknowledgement id */
     private static $ack = null;
 
+    /**
+     * Constructor.
+     *
+     * @param string $url Socket URL
+     * @param array $options Engine options
+     */
     public function __construct($url, array $options = [])
     {
         $this->url = $url;
@@ -88,22 +106,46 @@ abstract class SocketIO implements EngineInterface, SocketInterface
             unset($options['context']);
         }
 
-        $this->defaults = array_merge([
+        $this->defaults = [
             'wait' => 10,
             'timeout' => ini_get('default_socket_timeout'),
             'reuse_connection' => true,
             'transport' => static::TRANSPORT_POLLING,
             'transports' => null,
             'binary_as_resource' => true,
-        ], $this->getDefaultOptions());
+        ];
 
+        $this->initialize($options);
         $this->options = Option::create(array_replace($this->defaults, $options));
+        if (isset($this->packetMaps['proto'])) {
+            $protos = array_keys($this->packetMaps['proto']);
+            $this->proto = [min($protos), max($protos)];
+        }
+    }
+
+    /**
+     * Do initilization.
+     *
+     * @param array $options Engine options
+     */
+    protected function initialize(&$options)
+    {
+    }
+
+    /**
+     * Set default options.
+     *
+     * @param array $options Default options
+     */
+    protected function setDefaults($defaults)
+    {
+        $this->defaults = array_merge($this->defaults, $defaults);
     }
 
     /** {@inheritDoc} */
     public function getName()
     {
-        return 'SocketIO';
+        return $this->name;
     }
 
     /**
@@ -342,16 +384,6 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     /**
-     * Get the defaults options.
-     *
-     * @return array Defaults options for this engine
-     */
-    protected function getDefaultOptions()
-    {
-        return [];
-    }
-
-    /**
      * Wait for a matched packet to arrive.
      *
      * @param callable $matcher
@@ -388,11 +420,14 @@ abstract class SocketIO implements EngineInterface, SocketInterface
         $result = null;
         $packets = (array) $data;
         while (count($packets)) {
-            if ($packet = $this->processPacket(array_shift($packets), $packets)) {
-                if (null === $result) {
-                    $result = $packet;
-                } else {
-                    $result->add($packet);
+            if ($packet = $this->decodePacket(array_shift($packets))) {
+                $this->postPacket($packet, $packets);
+                if (!$this->consumePacket($packet)) {
+                    if (null === $result) {
+                        $result = $packet;
+                    } else {
+                        $result->add($packet);
+                    }
                 }
             }
         }
@@ -401,14 +436,34 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     /**
-     * Process raw packet data.
+     * Decode a packet.
      *
-     * @param string $data Packet data
-     * @param array $more Remaining packet data to be processed
+     * @param string $data
      * @return \ElephantIO\Engine\Packet
      */
-    protected function processPacket($data, &$more)
+    protected function decodePacket($data)
     {
+    }
+
+    /**
+     * Post processing a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet
+     * @param array $more Remaining packet data to be processed
+     */
+    protected function postPacket($packet, &$more)
+    {
+    }
+
+    /**
+     * Consume a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet
+     * @return bool
+     */
+    protected function consumePacket($packet)
+    {
+        return false;
     }
 
     /**
@@ -501,21 +556,11 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     {
         $packet = new Packet();
         $packet->proto = $proto;
-        if (count($maps = $this->getPacketMaps())) {
-            $packet->setMaps($maps);
+        if (count($this->packetMaps)) {
+            $packet->setMaps($this->packetMaps);
         }
 
         return $packet;
-    }
-
-    /**
-     * Get packet value mapping.
-     *
-     * @return array
-     */
-    protected function getPacketMaps()
-    {
-        return [];
     }
 
     /**
@@ -562,7 +607,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     {
         $this->options->timeout = $timeout;
         // stream already established?
-        if ($this->options->reuse_connection && $this->stream) {
+        if ($this->stream) {
             $this->stream->setTimeout($timeout);
         }
 
@@ -644,7 +689,7 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      */
     protected function isProtocol($proto)
     {
-        throw new UnsupportedActionException($this, 'isProtocol');
+        return $proto >= $this->proto[0] && $proto <= $this->proto[1] ? true : false;
     }
 
     /**
@@ -656,7 +701,19 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      */
     protected function formatProtocol($proto, $data = null)
     {
-        throw new UnsupportedActionException($this, 'formatProtocol');
+        return implode($this->protoDelimiter, $this->buildProtocol($proto, $data));
+    }
+
+    /**
+     * Build protocol data.
+     *
+     * @param int $proto
+     * @param string $data
+     * @return string[]
+     */
+    protected function buildProtocol($proto, $data = null)
+    {
+        return [$proto, $data];
     }
 
     /**
