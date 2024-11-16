@@ -395,7 +395,7 @@ class Version1X extends SocketIO
 
         /** @var \ElephantIO\Engine\Transport\Polling $transport */
         $transport = $this->_transport();
-        if (null === ($data = $transport->recv(0, ['upgrade' => $this->transport === static::TRANSPORT_WEBSOCKET]))) {
+        if (null === ($data = $transport->recv($this->options->timeout, ['upgrade' => $this->transport === static::TRANSPORT_WEBSOCKET]))) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
@@ -447,7 +447,7 @@ class Version1X extends SocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        if (null !== $this->_transport()->recv(0, ['transport' => static::TRANSPORT_WEBSOCKET, 'upgrade' => true])) {
+        if (null !== $this->_transport()->recv($this->options->timeout, ['transport' => static::TRANSPORT_WEBSOCKET, 'upgrade' => true])) {
             $this->setTransport(static::TRANSPORT_WEBSOCKET);
             $this->stream->upgrade();
 
