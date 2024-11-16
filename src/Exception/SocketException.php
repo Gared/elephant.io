@@ -17,7 +17,7 @@ use RuntimeException;
 
 class SocketException extends RuntimeException
 {
-    public function __construct($errno, $error, Exception $previous = null)
+    public function __construct($errno, $error, ?Exception $previous = null)
     {
         parent::__construct(
             \sprintf(

@@ -43,7 +43,7 @@ class Client
     /** @var \Psr\Log\LoggerInterface */
     private $logger;
 
-    public function __construct(EngineInterface $engine, LoggerInterface $logger = null)
+    public function __construct(EngineInterface $engine, ?LoggerInterface $logger = null)
     {
         $this->engine = $engine;
         $this->logger = $logger ?: new NullLogger();
