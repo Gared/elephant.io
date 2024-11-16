@@ -47,8 +47,23 @@ class Polling extends Transport
      */
     protected function getDefaultHeaders()
     {
-        $headers = ['Connection' => $this->sio->getOptions()->reuse_connection ? 'keep-alive' : 'close'];
-        $this->addCookie($headers);
+        $context = $this->sio->getContext();
+        $headers = ['Accept' => '*/*'];
+        if ($this->sio->getOptions()->cors) {
+            $headers['Origin'] = $context['headers']['Origin'] ?? $this->sio->getUrl();
+            $headers['Referer'] = $context['headers']['Referer'] ?? $this->sio->getUrl();
+        }
+        if ($ua = $this->sio->getOptions()->ua) {
+            if (is_string($ua)) {
+                $headers['User-Agent'] = $ua;
+            } else {
+                $headers['User-Agent'] = sprintf('Elephant.io/%s', ($version = Util::getVersion()) ? $version : '*');
+            }
+        }
+        if (count($cookies = $this->sio->getCookies())) {
+            $headers['Cookie'] = implode('; ', $cookies);
+        }
+        $headers['Connection'] = $this->sio->getOptions()->reuse_connection ? 'keep-alive' : 'close';
 
         return $headers;
     }
@@ -64,28 +79,13 @@ class Polling extends Transport
         if ($this->sio->getOptions()->version > SocketIO::EIO_V2) {
             $hash = substr($hash, 0, 16);
         }
-        $headers = [
+
+        return array_merge($this->getDefaultHeaders(), [
             'Upgrade' => 'websocket',
             'Connection' => 'Upgrade',
             'Sec-WebSocket-Key' => base64_encode($hash),
             'Sec-WebSocket-Version' => '13',
-            'Origin' => $this->sio->getContext()['headers']['Origin'] ?? '*',
-        ];
-        $this->addCookie($headers);
-
-        return $headers;
-    }
-
-    /**
-     * Add cookie to request headers.
-     *
-     * @param array $headers  Request headers
-     */
-    protected function addCookie(&$headers)
-    {
-        if (count($this->sio->getCookies())) {
-            $headers['Cookie'] = implode('; ', $this->sio->getCookies());
-        }
+        ]);
     }
 
     /**

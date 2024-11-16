@@ -107,6 +107,8 @@ abstract class SocketIO implements EngineInterface, SocketInterface
         }
 
         $this->defaults = [
+            'ua' => true,
+            'cors' => true,
             'wait' => 10,
             'timeout' => ini_get('default_socket_timeout'),
             'reuse_connection' => true,
@@ -156,6 +158,16 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     public function getOptions()
     {
         return $this->options;
+    }
+
+    /**
+     * Get socket URL.
+     *
+     * @return string
+     */
+    public function getUrl()
+    {
+        return $this->url;
     }
 
     /**

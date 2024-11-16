@@ -121,6 +121,12 @@ authentication token, or providing stream context.
   $client = Client::create($url, $options);
   ```
 
+* `cors`
+
+  Adds `Origin` and `Referer` header automatically using provided socket url. Both `Origin` and `Referer`
+  headers still can be overridden using `context` headers or `headers` option. To disable this behavior
+  set `cors` to `false`.
+
 * `headers` _(socket.io 1+)_
 
   An array of key-value pair to be sent as request headers. For example, pass a bearer token to the server.
@@ -186,6 +192,12 @@ authentication token, or providing stream context.
 
   An array of enabled transport. Set to `null` to enable all transports or combination of
   `polling` and `websocket` to enable specific transport.
+
+* `ua`
+
+  Adds `Elephant.io/VERSION` as `User-Agent` header automatically. `User-Agent` header still
+  can be overridden by setting `ua` as user agent string or using `headers` option. To disable
+  this behavior set `ua` to `false`.
 
 ## Methods
 

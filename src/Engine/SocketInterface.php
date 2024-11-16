@@ -27,6 +27,13 @@ interface SocketInterface
     public function getOptions();
 
     /**
+     * Get socket URL.
+     *
+     * @return string
+     */
+    public function getUrl();
+
+    /**
      * Get socket stream.
      *
      * @param bool $create True to create the stream

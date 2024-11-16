@@ -209,7 +209,7 @@ class SocketStream extends Stream
         if (is_resource($this->handle)) {
             $data = null !== $size ? fread($this->handle, (int) $size) : fgets($this->handle);
             if (false !== $data && strlen($data)) {
-                $this->logger->debug(sprintf('Stream receive: %s', Util::truncate($data)));
+                $this->logger->debug(sprintf('Stream receive: %s', Util::truncate(rtrim($data))));
             }
 
             return $data;

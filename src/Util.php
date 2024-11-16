@@ -12,6 +12,8 @@
 
 namespace ElephantIO;
 
+use ReflectionClass;
+
 /**
  * A collection of utilities.
  *
@@ -19,6 +21,11 @@ namespace ElephantIO;
  */
 class Util
 {
+    /**
+     * @var string
+     */
+    protected static $version = null;
+
     /**
      * Normalize namespace.
      *
@@ -173,5 +180,53 @@ class Util
         }
 
         return $result;
+    }
+
+    /**
+     * Get Composer autoloader instance.
+     *
+     * @return \Composer\Autoload\ClassLoader
+     */
+    public static function getComposer()
+    {
+        if ($autoloaders = spl_autoload_functions()) {
+            foreach ($autoloaders as $autoload) {
+                if (is_array($autoload)) {
+                    $class = $autoload[0];
+                    if ('Composer\Autoload\ClassLoader' === get_class($class)) {
+                        return $class;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get package version from Composer.
+     *
+     * @return string
+     */
+    public static function getVersion()
+    {
+        if (null === static::$version) {
+            if ($composer = static::getComposer()) {
+                $package = json_decode(file_get_contents(__DIR__.'/../composer.json'), true);
+                $packageName = $package['name'];
+                $r = new ReflectionClass($composer);
+                $composerDir = dirname($r->getFileName());
+                if (is_readable($installed = $composerDir.DIRECTORY_SEPARATOR.'installed.json')) {
+                    $packages = json_decode(file_get_contents($installed), true);
+                    $packages = isset($packages['packages']) ? $packages['packages'] : $packages;
+                    foreach ($packages as $package) {
+                        if (isset($package['name']) && $package['name'] === $packageName) {
+                            static::$version = $package['version'];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return static::$version;
     }
 }
