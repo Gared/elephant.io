@@ -18,7 +18,7 @@ use Exception;
 
 class UnsupportedActionException extends BadMethodCallException
 {
-    public function __construct(EngineInterface $engine, $action, Exception $previous = null)
+    public function __construct(EngineInterface $engine, $action, ?Exception $previous = null)
     {
         parent::__construct(
             \sprintf('The action "%s" is not supported by the engine "%s"', $engine->getName(), $action),

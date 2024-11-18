@@ -20,7 +20,7 @@ class ServerConnectionFailureException extends RuntimeException
     /** @var string php error message */
     private $errorMessage;
 
-    public function __construct($errorMessage, Exception $previous = null)
+    public function __construct($errorMessage, ?Exception $previous = null)
     {
         parent::__construct(sprintf('An error occurred while trying to establish a connection to the server, %s', $errorMessage), 0, $previous);
 
