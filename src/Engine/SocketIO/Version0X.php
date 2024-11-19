@@ -252,7 +252,7 @@ class Version0X extends SocketIO
 
         /** @var \ElephantIO\Engine\Transport\Polling $transport */
         $transport = $this->_transport();
-        if (null === ($data = $transport->recv())) {
+        if (null === ($data = $transport->recv($this->options->timeout))) {
             throw new ServerConnectionFailureException('unable to perform handshake');
         }
 
@@ -275,7 +275,7 @@ class Version0X extends SocketIO
         // set timeout based on handshake response
         $this->setTimeout($this->session->getTimeout());
 
-        if (null !== $this->_transport()->recv(0, ['transport' => static::TRANSPORT_WEBSOCKET, 'upgrade' => true])) {
+        if (null !== $this->_transport()->recv($this->options->timeout, ['transport' => static::TRANSPORT_WEBSOCKET, 'upgrade' => true])) {
             $this->setTransport(static::TRANSPORT_WEBSOCKET);
             $this->stream->upgrade();
 
@@ -288,7 +288,7 @@ class Version0X extends SocketIO
     protected function doSkipUpgrade()
     {
         // send get request to setup connection
-        $this->_transport()->recv();
+        $this->_transport()->recv($this->options->timeout);
     }
 
     protected function doChangeNamespace()
@@ -311,8 +311,9 @@ class Version0X extends SocketIO
     protected function doClose()
     {
         $this->send(static::PROTO_DISCONNECT);
-        if ($this->transport === static::TRANSPORT_WEBSOCKET) {
-            $this->drain();
+        // don't crash server, wait for disconnect packet to be received
+        if ($this->transport === static::TRANSPORT_WEBSOCKET && '' === $this->namespace) {
+            $this->drain($this->options->timeout);
         }
     }
 }

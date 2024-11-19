@@ -331,7 +331,7 @@ class Polling extends Transport
         if (!$data instanceof Encoder) {
             $data = new Encoder($data, $this->sio->getOptions()->version);
         }
-        $options = ['method' => 'POST', 'payload' => $data];
+        $options = ['method' => 'POST', 'payload' => $data, 'timeout' => $this->sio->getOptions()->timeout];
         $headers = $this->getDefaultHeaders();
         $code = 200;
         $transport = isset($parameters['transport']) ? $parameters['transport'] : $this->sio->getOptions()->transport;
@@ -347,7 +347,7 @@ class Polling extends Transport
     public function recv($timeout = 0, $parameters = [])
     {
         $this->timedout = null;
-        $options = [];
+        $options = ['timeout' => $timeout];
         if (isset($parameters['upgrade']) && $parameters['upgrade']) {
             $headers = $this->getUpgradeHeaders();
             $options['skip_body'] = true;
