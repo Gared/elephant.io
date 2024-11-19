@@ -76,7 +76,7 @@ class Polling extends Transport
     protected function getUpgradeHeaders()
     {
         $hash = sha1(uniqid(mt_rand(), true), true);
-        if ($this->sio->getOptions()->version > SocketIO::EIO_V2) {
+        if ($this->sio->getOptions()->version >= SocketIO::EIO_V3) {
             $hash = substr($hash, 0, 16);
         }
 

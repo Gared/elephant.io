@@ -426,18 +426,15 @@ class Version1X extends SocketIO
     protected function doAfterHandshake()
     {
         // connect to namespace for protocol version 4 and later
-        if ($this->options->version < static::EIO_V4) {
-            return;
+        if ($this->options->version >= static::EIO_V4) {
+            $this->logger->info('Starting namespace connect');
+
+            // set timeout based on handshake response
+            $this->setTimeout($this->session->getTimeout());
+            $this->doChangeNamespace();
+
+            $this->logger->info('Namespace connect completed');
         }
-
-        $this->logger->info('Starting namespace connect');
-
-        // set timeout based on handshake response
-        $this->setTimeout($this->session->getTimeout());
-
-        $this->doChangeNamespace();
-
-        $this->logger->info('Namespace connect completed');
     }
 
     protected function doUpgrade()
