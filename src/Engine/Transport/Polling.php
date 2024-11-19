@@ -347,9 +347,7 @@ class Polling extends Transport
     public function recv($timeout = 0, $parameters = [])
     {
         $this->timedout = null;
-        $options = [
-            'timeout' => $timeout,
-        ];
+        $options = ['timeout' => $timeout];
         if (isset($parameters['upgrade']) && $parameters['upgrade']) {
             $headers = $this->getUpgradeHeaders();
             $options['skip_body'] = true;

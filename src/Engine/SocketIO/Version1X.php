@@ -401,7 +401,7 @@ class Version1X extends SocketIO
 
         if ($this->transport === static::TRANSPORT_WEBSOCKET) {
             $this->stream->upgrade();
-            $packet = $this->drain();
+            $packet = $this->drain($this->options->timeout);
         } else {
             $packet = $this->processData($data);
         }
@@ -454,7 +454,7 @@ class Version1X extends SocketIO
             $this->send(static::PROTO_UPGRADE);
 
             // ensure got packet connect on socket.io 1.x
-            if ($this->options->version === static::EIO_V2 && $packet = $this->drain()) {
+            if ($this->options->version === static::EIO_V2 && $packet = $this->drain($this->options->timeout)) {
                 $confirm = null;
                 foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
                     if ($found->type === static::PACKET_CONNECT) {
@@ -483,7 +483,7 @@ class Version1X extends SocketIO
 
         $this->send(static::PROTO_MESSAGE, static::PACKET_CONNECT . Util::concatNamespace($this->namespace, $this->getAuthPayload()));
 
-        $packet = $this->drain();
+        $packet = $this->drain($this->options->timeout);
         if (true === ($result = $this->getConfirmedNamespace($packet))) {
             return $packet;
         }
