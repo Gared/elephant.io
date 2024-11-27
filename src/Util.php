@@ -193,7 +193,7 @@ class Util
             foreach ($autoloaders as $autoload) {
                 if (is_array($autoload)) {
                     $class = $autoload[0];
-                    if ('Composer\Autoload\ClassLoader' === get_class($class)) {
+                    if (is_object($class) && 'Composer\Autoload\ClassLoader' === get_class($class)) {
                         return $class;
                     }
                 }
