@@ -47,8 +47,8 @@ class SequenceReader
                 $result = $this->data;
                 $this->data = '';
             } else {
-                $result = substr($this->data, 0, $size);
-                $this->data = substr($this->data, $size);
+                $result = mb_substr($this->data, 0, $size);
+                $this->data = mb_substr($this->data, $size);
             }
 
             return $result;
@@ -67,12 +67,12 @@ class SequenceReader
         if (!$this->isEof()) {
             list($p, $d) = $this->getPos($this->data, $delimiter);
             if (false !== $p) {
-                $result = substr($this->data, 0, $p);
+                $result = mb_substr($this->data, 0, $p);
                 // skip delimiter
                 if (!in_array($d, $noskips)) {
                     $p++;
                 }
-                $this->data = substr($this->data, $p);
+                $this->data = mb_substr($this->data, $p);
 
                 return $result;
             }
@@ -91,8 +91,8 @@ class SequenceReader
         if (!$this->isEof()) {
             list($p, $d) = $this->getPos($this->data, implode(array_merge([$delimiter], $boundaries)));
             if (false !== $p && $d === $delimiter) {
-                $result = substr($this->data, 0, $p);
-                $this->data = substr($this->data, $p);
+                $result = mb_substr($this->data, 0, $p);
+                $this->data = mb_substr($this->data, $p);
 
                 return $result;
             }
@@ -123,9 +123,9 @@ class SequenceReader
     {
         $pos = false;
         $delim = null;
-        for ($i = 0; $i < strlen($delimiter); $i++) {
-            $d = substr($delimiter, $i, 1);
-            if (false !== ($p = strpos($data, $d))) {
+        for ($i = 0; $i < mb_strlen($delimiter); $i++) {
+            $d = mb_substr($delimiter, $i, 1);
+            if (false !== ($p = mb_strpos($data, $d))) {
                 if (false === $pos || $p < $pos) {
                     $pos = $p;
                     $delim = $d;
@@ -153,6 +153,6 @@ class SequenceReader
      */
     public function isEof()
     {
-        return 0 === strlen($this->data) ? true : false;
+        return 0 === mb_strlen($this->data) ? true : false;
     }
 }

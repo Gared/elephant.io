@@ -45,9 +45,9 @@ class Decoder extends ArrayObject
             switch ($eio) {
                 case SocketIO::EIO_V4:
                     if (false !== ($len = $seq->getDelimited(static::EIO_V4_SEPARATOR))) {
-                        $skip = strlen(static::EIO_V4_SEPARATOR);
+                        $skip = mb_strlen(static::EIO_V4_SEPARATOR);
                     } else {
-                        $len = strlen($seq->getData());
+                        $len = mb_strlen($seq->getData());
                     }
                     break;
                 case SocketIO::EIO_V3:
@@ -57,7 +57,7 @@ class Decoder extends ArrayObject
                         if (in_array($signature, ["\x00", "\x01"])) {
                             $len = 0;
                             $sizes = $seq->readUntil("\xff");
-                            $n = strlen($sizes) - 1;
+                            $n = mb_strlen($sizes) - 1;
                             for ($i = 0; $i <= $n; $i++) {
                                 $len += ord($sizes[$i]) * pow(10, $n - $i);
                             }
@@ -70,9 +70,9 @@ class Decoder extends ArrayObject
                     break;
                 case SocketIO::EIO_V1:
                     if (false !== ($len = $seq->getDelimited(static::EIO_V1_SEPARATOR))) {
-                        $skip = strlen(static::EIO_V1_SEPARATOR);
+                        $skip = mb_strlen(static::EIO_V1_SEPARATOR);
                     } else {
-                        $len = strlen($seq->getData());
+                        $len = mb_strlen($seq->getData());
                     }
                     break;
             }
