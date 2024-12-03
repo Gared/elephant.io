@@ -22,8 +22,13 @@ class SequenceReaderTest extends TestCase
         $seq = new SequenceReader('1234567890');
 
         $this->assertSame('1', $seq->read(), 'Read one character each');
+        $this->assertSame('2', $seq->readData(), 'Can read 1 remaining characters');
+        $this->assertSame('234', $seq->readData(3), 'Can read 3 remaining characters');
         $this->assertSame('234567890', $seq->getData(), 'Data contains remaining characters');
         $this->assertSame(false, $seq->isEof(), 'No EOF if remaining data is exist');
+        $this->assertSame('234567890', $seq->read(null), 'Can read remaining characters');
+        $this->assertSame(true, $seq->isEof(), 'EOF reached once remaining characters read');
+        $this->assertSame('', $seq->readData(), 'An empty string returned when remanining characters unavailable');
     }
 
     public function testReadUntil()

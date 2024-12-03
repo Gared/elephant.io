@@ -137,6 +137,17 @@ class SequenceReader
     }
 
     /**
+     * Read unprocessed data without increase sequence position.
+     *
+     * @param int $size
+     * @return string
+     */
+    public function readData($size = 1)
+    {
+        return mb_substr($this->data, 0, $size);
+    }
+
+    /**
      * Get unprocessed data.
      *
      * @return string
