@@ -22,7 +22,7 @@ $client->emit($event, ['message' => 'This is first message']);
 if ($retval = $client->wait($event)) {
     echo sprintf("Got a reply for first message: %s\n", $retval->inspect());
 }
-$client->emit($event, ['message' => 'This is second message']);
+$client->emit($event, ['message' => 'Das höchste Gut und Uebel']);
 if ($retval = $client->wait($event)) {
     echo sprintf("Got a reply for second message: %s\n", $retval->inspect());
 }
