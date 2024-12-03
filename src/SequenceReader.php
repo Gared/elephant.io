@@ -70,7 +70,7 @@ class SequenceReader
                 $result = mb_substr($this->data, 0, $p);
                 // skip delimiter
                 if (!in_array($d, $noskips)) {
-                    $p++;
+                    $p += mb_strlen($d);
                 }
                 $this->data = mb_substr($this->data, $p);
 
@@ -92,7 +92,7 @@ class SequenceReader
             list($p, $d) = $this->getPos($this->data, implode(array_merge([$delimiter], $boundaries)));
             if (false !== $p && $d === $delimiter) {
                 $result = mb_substr($this->data, 0, $p);
-                $this->data = mb_substr($this->data, $p);
+                $this->data = mb_substr($this->data, $p + mb_strlen($d));
 
                 return $result;
             }

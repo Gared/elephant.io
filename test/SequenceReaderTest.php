@@ -47,16 +47,19 @@ class SequenceReaderTest extends TestCase
         $seq = new SequenceReader('1,["A",3]');
 
         $this->assertSame('1', $seq->readUntil(',[', ['[']), 'Read using delimiter with no skip character');
+        $this->assertSame('["A",3]', $seq->getData(), 'Remaining characters exclude delimiter');
         $this->assertSame('["A",3]', $seq->read(null), 'Read remaining characters');
         $this->assertSame(true, $seq->isEof(), 'No more characters');
     }
 
     public function testReadWithin()
     {
-        $seq = new SequenceReader('0["A",2]');
+        $seq = new SequenceReader('0,["A",2]');
 
-        $this->assertSame(null, $seq->readWithin(',', ['[']), 'Read using delimiter within boundary');
-        $this->assertSame('0["A",2]', $seq->read(null), 'Read remaining characters');
+        $this->assertSame('0', $seq->readWithin(',', ['[']), 'Read using delimiter within boundary');
+        $this->assertSame('["A",2]', $seq->getData(), 'Remaining characters exclude delimiter');
+        $this->assertSame(null, $seq->readWithin(',', ['[']), 'Null returned when delimiter is beyond boundary');
+        $this->assertSame('["A",2]', $seq->read(null), 'Read remaining characters');
         $this->assertSame(true, $seq->isEof(), 'No more characters');
     }
 }
