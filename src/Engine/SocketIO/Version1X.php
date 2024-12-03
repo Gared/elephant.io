@@ -137,7 +137,7 @@ class Version1X extends SocketIO
     {
         foreach ($packet->peek(static::PROTO_MESSAGE) as $found) {
             if (in_array($found->type, [static::PACKET_ACK, static::PACKET_BINARY_ACK]) &&
-                $this->matchNamespace($found->nsp) && $found->ack == $this->getAckId()) {
+                $this->matchNamespace($found->nsp) && $found->ack === $this->getAckId()) {
                 return $found;
             }
         }
@@ -172,8 +172,8 @@ class Version1X extends SocketIO
                     $packet->nsp = $seq->readWithin(',', $openings);
                     // check for ack
                     if (in_array($packet->type, [static::PACKET_EVENT, static::PACKET_BINARY_EVENT, static::PACKET_ACK, static::PACKET_BINARY_ACK])) {
-                        if (!in_array(substr($seq->getData(), 0, 1), $openings)) {
-                            $packet->ack = (int) $seq->readUntil(implode($openings), $openings);
+                        if (!in_array($seq->readData(), $openings) && '' !== ($ack = (string) $seq->readUntil(implode($openings), $openings))) {
+                            $packet->ack = (int) $ack;
                         }
                     }
                     if (null !== ($data = json_decode($seq->getData(), true))) {
