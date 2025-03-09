@@ -218,10 +218,18 @@ Elephant.io client (`ElephantIO\Client`) provides the following api methods:
 
   Connect to a namespace, see `connect()` above for possible errors.
 
-* `emit($event, array $args, $ack = null)`
+* `emit($event, $args, $ack = null)`
 
   Send an event to server. To request an acknowledgement from server, set `$ack` to `true`.
   When an acknowledgement is requested, a packet will be returned on successful operation.
+
+  The `args` can be an array which would be passed as the first argument to the server, if
+  you need to pass any arbitrary arguments to the server, use `\ElephantIO\Engine\Argument`
+  object instead. e.g. `new \ElephantIO\Engine\Argument(1, 'two')`.
+
+* `ack($packet, $args)`
+
+  Acknowledge a received event. The `args` also behave as `emit()` above.
 
 * `wait($event, $timeout = 0)`
 
@@ -231,10 +239,6 @@ Elephant.io client (`ElephantIO\Client`) provides the following api methods:
 
   Drain and get returned packet from server, used to receive data from server
   when we are not expecting an event to arrive.
-
-* `ack($packet, array $args)`
-
-  Acknowledge a received event.
 
 * `getEngine()`
 

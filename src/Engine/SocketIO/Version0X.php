@@ -73,6 +73,7 @@ class Version0X extends SocketIO
     /** {@inheritDoc} */
     protected function createEvent($event, $args, $ack = null)
     {
+        $args = $args->getArguments();
         $this->ackId = $ack ? $this->getAckId(true) : null;
 
         return [static::PROTO_EVENT, json_encode(['name' => $event, 'args' => $this->replaceResources($args)]), null];
@@ -91,7 +92,7 @@ class Version0X extends SocketIO
     /** {@inheritDoc} */
     protected function createAck($packet, $data)
     {
-        return [static::PROTO_ACK, implode('+', [$packet->ack, json_encode($data)])];
+        return [static::PROTO_ACK, implode('+', [$packet->ack, json_encode($data->getArguments())])];
     }
 
     /** {@inheritDoc} */

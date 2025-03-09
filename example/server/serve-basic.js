@@ -21,6 +21,10 @@ class BasicServer extends ExampleServer {
             socket
                 .on('disconnect', () => {
                     this.log('disconnected: %s', socket.id);
+                })
+                .on('test', (arg1, arg2, arg3) => {
+                    this.log('Test arguments', arg1, arg2, arg3);
+                    socket.emit('test', 1, 2, 'Okay');
                 });
             setTimeout(() => socket.emit('hello'), 500);
         });

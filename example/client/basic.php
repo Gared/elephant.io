@@ -10,6 +10,8 @@
  * @license   http://www.opensource.org/licenses/MIT-License MIT License
  */
 
+use ElephantIO\Engine\Argument;
+
 require __DIR__ . '/common.php';
 
 $logger = setup_logger();
@@ -23,7 +25,11 @@ foreach ([
     while (true) {
         if ($packet = $client->wait(null, 1)) {
             echo sprintf("Got event %s\n", $packet->event);
-            break;
+            $client->emit('test', new Argument(1, 2, 'test'));
+            if ($packet = $client->wait('test')) {
+                echo sprintf("Got test: %s\n", inspect($packet->args));
+                break;
+            }
         }
     }
     $client->disconnect();

@@ -23,6 +23,7 @@ use Psr\Log\LoggerAwareInterface;
  *   - Mathieu Lallemand (@lalmat)
  *
  * @author Baptiste Clavié <baptiste@wisembly.com>
+ * @author Toha <tohenk@yahoo.com>
  */
 interface EngineInterface extends LoggerAwareInterface
 {
@@ -66,11 +67,20 @@ interface EngineInterface extends LoggerAwareInterface
      * Emit an event to server.
      *
      * @param string $event Event to emit
-     * @param array $args Arguments to send
+     * @param array|\ElephantIO\Engine\Argument $args Arguments to send
      * @param bool $ack Set to true to request an ack
      * @return int|\ElephantIO\Engine\Packet Number of bytes written or acknowledged packet
      */
-    public function emit($event, array $args, $ack = null);
+    public function emit($event, $args, $ack = null);
+
+    /**
+     * Acknowledge a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
+     * @param array|\ElephantIO\Engine\Argument $args Acknowledgement data
+     * @return int Number of bytes written
+     */
+    public function ack($packet, $args);
 
     /**
      * Wait for event to arrive. To wait for any event from server, simply pass null
@@ -89,13 +99,4 @@ interface EngineInterface extends LoggerAwareInterface
      * @return \ElephantIO\Engine\Packet
      */
     public function drain($timeout = 0);
-
-    /**
-     * Acknowledge a packet.
-     *
-     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
-     * @param array $args Acknowledgement data
-     * @return int Number of bytes written
-     */
-    public function ack($packet, array $args);
 }

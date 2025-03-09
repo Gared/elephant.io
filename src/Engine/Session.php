@@ -21,6 +21,7 @@ namespace ElephantIO\Engine;
  * @property string[] $upgrades Upgradable transports
  * @property int $max_payload Maximum payload length
  * @author Baptiste Clavié <baptiste@wisembly.com>
+ * @author Toha <tohenk@yahoo.com>
  */
 class Session extends Store
 {

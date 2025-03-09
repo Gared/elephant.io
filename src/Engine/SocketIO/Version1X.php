@@ -89,10 +89,11 @@ class Version1X extends SocketIO
     /** {@inheritDoc} */
     protected function createEvent($event, $args, $ack = null)
     {
+        $args = $args->getArguments();
         $attachments = [];
         $this->getAttachments($args, $attachments);
         $type = count($attachments) ? static::PACKET_BINARY_EVENT : static::PACKET_EVENT;
-        $data = ($ack ? $this->getAckId(true) : '') . json_encode([$event, $args]);
+        $data = ($ack ? $this->getAckId(true) : '') . json_encode(array_merge([$event], $args));
         $data = Util::concatNamespace($this->namespace, $data);
         if ($type === static::PACKET_BINARY_EVENT) {
             $data = sprintf('%d-%s', count($attachments), $data);
@@ -147,7 +148,7 @@ class Version1X extends SocketIO
     protected function createAck($packet, $data)
     {
         $type = $packet->count ? static::PACKET_BINARY_ACK : static::PACKET_ACK;
-        $data = Util::concatNamespace($this->namespace, $packet->ack . json_encode($data));
+        $data = Util::concatNamespace($this->namespace, $packet->ack . json_encode($data->getArguments()));
 
         return [static::PROTO_MESSAGE, $type . $data];
     }

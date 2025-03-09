@@ -160,6 +160,8 @@ class Util
             $result = '<' . static::truncate(stream_get_contents($value), 32) . '>';
         } elseif (is_string($value)) {
             $result = '"' . $value . '"';
+        } elseif (is_object($value)) {
+            $result = (string) $value;
         } else {
             $result = var_export($value, true);
         }

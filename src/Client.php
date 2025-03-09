@@ -28,6 +28,7 @@ use Psr\Log\LoggerInterface;
  * socket.io server.
  *
  * @author Baptiste Clavié <baptiste@wisembly.com>
+ * @author Toha <tohenk@yahoo.com>
  */
 class Client
 {
@@ -107,15 +108,31 @@ class Client
      * Emit an event to server.
      *
      * @param string $event Event name
-     * @param array $args Event arguments
+     * @param array|ElephantIO\Engine\Argument $args Event arguments
      * @param bool $ack Set to true to request acknowledgement
      * @return int|\ElephantIO\Engine\Packet Number of bytes written or acknowledged packet
      */
-    public function emit($event, array $args, $ack = null)
+    public function emit($event, $args, $ack = null)
     {
         $this->logger->info('Emitting a new event', ['event' => $event, 'args' => Util::toStr($args)]);
 
         return $this->engine->emit($event, $args, $ack);
+    }
+
+    /**
+     * Acknowledge a packet.
+     *
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
+     * @param array|ElephantIO\Engine\Argument $args Acknowledgement data
+     * @return int Number of bytes written
+     */
+    public function ack($packet, $args)
+    {
+        if (null !== $packet->ack) {
+            $this->logger->info(sprintf('Acknowledge a packet with id %s', $packet->ack), ['args' => Util::toStr($args)]);
+
+            return $this->engine->ack($packet, $args);
+        }
     }
 
     /**
@@ -142,22 +159,6 @@ class Client
     public function drain($timeout = 0)
     {
         return $this->engine->drain($timeout);
-    }
-
-    /**
-     * Acknowledge a packet.
-     *
-     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
-     * @param array $args Acknowledgement data
-     * @return int Number of bytes written
-     */
-    public function ack($packet, array $args)
-    {
-        if (null !== $packet->ack) {
-            $this->logger->info(sprintf('Acknowledge a packet with id %s', $packet->ack), ['args' => Util::toStr($args)]);
-
-            return $this->engine->ack($packet, $args);
-        }
     }
 
     /**

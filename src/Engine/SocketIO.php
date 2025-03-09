@@ -13,6 +13,7 @@
 namespace ElephantIO\Engine;
 
 use ArrayObject;
+use ElephantIO\Engine\Argument;
 use ElephantIO\Engine\Packet;
 use ElephantIO\Engine\Transport\Polling;
 use ElephantIO\Engine\Transport\Websocket;
@@ -25,6 +26,8 @@ use Psr\Log\LoggerAwareTrait;
 
 /**
  * Elephant.io socket engine base class.
+ *
+ * @author Toha <tohenk@yahoo.com>
  */
 abstract class SocketIO implements EngineInterface, SocketInterface
 {
@@ -314,8 +317,11 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     }
 
     /** {@inheritDoc} */
-    public function emit($event, array $args, $ack = null)
+    public function emit($event, $args, $ack = null)
     {
+        if (!$args instanceof Argument) {
+            $args = Argument::from($args);
+        }
         list($proto, $data, $raws) = $this->createEvent($event, $args, $ack);
 
         $len = $this->send($proto, $data);
@@ -333,6 +339,17 @@ abstract class SocketIO implements EngineInterface, SocketInterface
         }
 
         return $len;
+    }
+
+    /** {@inheritDoc} */
+    public function ack($packet, $args)
+    {
+        if (!$args instanceof Argument) {
+            $args = Argument::from($args);
+        }
+        list($proto, $data) = $this->createAck($packet, $args);
+
+        return $this->send($proto, $data);
     }
 
     /** {@inheritDoc} */
@@ -356,14 +373,6 @@ abstract class SocketIO implements EngineInterface, SocketInterface
 
             return $this->processData($data);
         }
-    }
-
-    /** {@inheritDoc} */
-    public function ack($packet, array $args)
-    {
-        list($proto, $data) = $this->createAck($packet, $args);
-
-        return $this->send($proto, $data);
     }
 
     /**
@@ -495,9 +504,9 @@ abstract class SocketIO implements EngineInterface, SocketInterface
      * Create an event to sent to server.
      *
      * @param string $event
-     * @param array $args
+     * @param array|\ElephantIO\Engine\Argument $args
      * @param bool $ack
-     * @return array[int, string]
+     * @return array An indexed array which first element would be protocol id and second element is the data
      */
     protected function createEvent($event, $args, $ack = null)
     {
@@ -519,9 +528,9 @@ abstract class SocketIO implements EngineInterface, SocketInterface
     /**
      * Create an acknowledgement.
      *
-     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledfe
-     * @param array $data Acknowledgement data
-     * @return array[int, string]
+     * @param \ElephantIO\Engine\Packet $packet Packet to acknowledge
+     * @param array|\ElephantIO\Engine\Argument $data Acknowledgement data
+     * @return array An indexed array which first element would be protocol id and second element is the data
      */
     protected function createAck($packet, $data)
     {
