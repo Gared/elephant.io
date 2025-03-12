@@ -44,7 +44,7 @@
         "friendsofphp/php-cs-fixer": "^3.0",
         "phpunit/phpunit": "^8.5 || ^9.5",
         "monolog/monolog": "^2.8 || ^3.0",
-        "phpstan/phpstan": "^2.1"
+        "phpstan/phpstan": "^1.12"
     },
     "autoload": {
         "psr-4": {
