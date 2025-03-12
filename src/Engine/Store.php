@@ -264,7 +264,7 @@ class Store
      */
     public static function create($keyValuePair)
     {
-        $store = new static();
+        $store = new self();
         $store->fromArray($keyValuePair);
 
         return $store;
