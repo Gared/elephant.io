@@ -245,6 +245,8 @@ class SocketStream extends Stream
                     }
                     // this is the remaining data
                     $data = substr($data, $written);
+                } elseif ($written === 0 && $this->readable() === false) {
+                    throw new RuntimeException('Unable to write data to stream!');
                 }
             }
         }
